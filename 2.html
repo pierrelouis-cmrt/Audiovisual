@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The art of listening — audiovisual piece (v6)</title>
+    <style>
+      :root {
+        --light-a: 255, 204, 51;
+        --light-b: 255, 153, 0;
+        --light-c: 255, 238, 136;
+        --light-intensity: 0.1;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #14100b;
+        color: #efe7d6;
+        cursor: none;
+      }
+      @import url("https://fonts.googleapis.com/css2?family=Anton&display=swap");
+
+      canvas#gl {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        pointer-events: none;
+      }
+
+      .noise-overlay {
+        position: fixed;
+        inset: -25% -25%;
+        width: 150%;
+        height: 150%;
+        background-size: 180px 180px;
+        opacity: 0.18;
+        mix-blend-mode: soft-light;
+        pointer-events: none;
+        z-index: 9;
+        filter: contrast(115%) brightness(100%);
+      }
+
+      .overlay {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        z-index: 20;
+        pointer-events: none;
+      }
+      .overlay .caption {
+        font-family: "Bodoni Moda", serif;
+        font-style: italic;
+        letter-spacing: 0.06em;
+        font-size: 1rem;
+        opacity: 0.75;
+      }
+
+      .overlay .quote {
+        font-family: "Anton", sans-serif;
+        font-weight: 900;
+        text-transform: uppercase;
+        font-size: clamp(3rem, 9vw, 8rem);
+        letter-spacing: 0.02em;
+        color: rgba(255, 255, 255, 0.75);
+        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.95);
+      }
+
+      .overlay .attributions {
+        font-family: "Bodoni Moda", serif;
+        font-style: italic;
+        opacity: 0.75;
+      }
+
+      .controls {
+        position: fixed;
+        top: 14px;
+        left: 14px;
+        z-index: 30;
+        pointer-events: auto;
+      }
+      .btn {
+        padding: 8px 16px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(20, 20, 20, 0.25);
+        color: #fff;
+        font-weight: 500;
+        cursor: pointer;
+        backdrop-filter: blur(8px) saturate(120%);
+        font-size: 0.85rem;
+        opacity: 0.5;
+        transition: opacity 0.2s ease;
+      }
+      .btn:hover {
+        opacity: 0.9;
+      }
+
+      .fps {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        z-index: 30;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(20, 20, 20, 0.25);
+        backdrop-filter: blur(8px) saturate(120%);
+        opacity: 0.4;
+        transition: opacity 0.2s ease;
+      }
+      .fps:hover {
+        opacity: 0.9;
+      }
+
+      .cursor {
+        position: fixed;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: rgba(255, 215, 120, 0.95);
+        box-shadow: 0 0 20px rgba(255, 220, 120, 0.9);
+        transform: translate(-50%, -50%);
+        z-index: 100;
+        pointer-events: none;
+        transition: filter 0.15s ease;
+      }
+      .cursor.snap {
+        filter: brightness(1.6);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gl"></canvas>
+    <div class="noise-overlay" id="noise"></div>
+
+    <div class="overlay">
+      <div>
+        <div class="caption">Find beauty in the space between sound</div>
+        <div class="quote">The art of listening</div>
+        <div class="attributions">
+          “When you learn to see the invisible, you create the impossible.”<br />Music
+          by KOSIKK
+        </div>
+      </div>
+    </div>
+
+    <div class="controls"><button class="btn" id="playBtn">Play</button></div>
+    <div class="fps" id="fps">FPS: —</div>
+    <div class="cursor" id="cursor"></div>
+
+    <script type="module">
+      import * as THREE from "https://unpkg.com/three@0.160.1/build/three.module.js";
+
+      // -------------------- AUDIO --------------------
+      const AUDIO_URL = "https://assets.codepen.io/7558/kosikk-slow-motion.ogg";
+      let audioCtx,
+        audioEl,
+        sourceNode,
+        analyser,
+        isPlaying = false;
+      const FFT_SIZE = 1024;
+      let sampleRate = 44100;
+      const freqData = new Uint8Array(FFT_SIZE / 2);
+
+      function setupAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        sampleRate = audioCtx.sampleRate;
+
+        audioEl = new Audio();
+        audioEl.crossOrigin = "anonymous";
+        audioEl.src = AUDIO_URL;
+        audioEl.loop = true;
+
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = FFT_SIZE;
+        analyser.smoothingTimeConstant = 0.78; // mild smooth
+
+        sourceNode = audioCtx.createMediaElementSource(audioEl);
+        sourceNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      }
+
+      // -------------------- THREE / SHADER --------------------
+      const renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById("gl"),
+        antialias: true,
+        powerPreference: "high-performance",
+      });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(innerWidth, innerHeight);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+      const uniforms = {
+        u_time: { value: 0 },
+        u_res: { value: new THREE.Vector2(innerWidth, innerHeight) },
+
+        // Audio bands (we'll push slightly higher values for stronger amplitude)
+        u_low: { value: 0 },
+        u_mid: { value: 0 },
+        u_high: { value: 0 },
+
+        // Palette (keep your warm look)
+        u_bgTop: { value: new THREE.Color("#2a1e0c") },
+        u_bgBottom: { value: new THREE.Color("#14100b") },
+        u_colA_in: { value: new THREE.Color("#ffcc33") },
+        u_colA_out: { value: new THREE.Color("#ff8800") },
+        u_colB_in: { value: new THREE.Color("#ffee88") },
+        u_colB_out: { value: new THREE.Color("#ff9900") },
+        u_colC_in: { value: new THREE.Color("#fff3aa") },
+        u_colC_out: { value: new THREE.Color("#ffbb33") },
+
+        // Line thickness
+        u_thickness: { value: 0.02 },
+
+        // Static grain texture
+        u_noiseTex: { value: null },
+
+        // NEW: stable horizontal phases (independent speeds)
+        u_phaseA: { value: 0 },
+        u_phaseB: { value: 0 },
+        u_phaseC: { value: 0 },
+      };
+
+      const material = new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = vec4(position, 1.0);
+      }
+    `,
+        fragmentShader: `
+      varying vec2 vUv;
+
+      uniform vec2  u_res;
+      uniform float u_time;
+      uniform float u_low, u_mid, u_high;
+      uniform vec3  u_bgTop, u_bgBottom;
+      uniform vec3  u_colA_in, u_colA_out, u_colB_in, u_colB_out, u_colC_in, u_colC_out;
+      uniform sampler2D u_noiseTex;
+      uniform float u_thickness;
+      uniform float u_phaseA, u_phaseB, u_phaseC;
+
+      float grain(vec2 uv){
+        // pre-baked static noise texture
+        return texture2D(u_noiseTex, uv * vec2(u_res.x/u_res.y, 1.0) * 0.75).r * 2.0 - 1.0;
+      }
+      float sdLineY(vec2 uv, float y){ return abs(uv.y - y); }
+      float gauss(float d, float s){ return exp(- (d*d) / (2.0*s*s)); }
+
+      // Always-on faint emission + reactive boost
+      vec3 stripe(vec2 uv, float y, vec3 cIn, vec3 cOut, float thick, float intens){
+        float d = sdLineY(uv, y);
+        float core = smoothstep(thick, 0.0, d);
+        float baseGlow  = gauss(d, thick*6.0) * 0.18;         // faint even when idle
+        float reactGlow = gauss(d, thick*6.0) * intens * 0.95; // stronger with sound
+        vec3 col = mix(cIn, cOut, uv.x);
+        return col * (core*1.2 + (baseGlow + reactGlow)*0.80);
+      }
+
+      void main(){
+        vec2 uv = vUv;
+
+        // Background (reactive but subtle)
+        vec3 bg = mix(u_bgBottom, u_bgTop, uv.y);
+
+        // Slightly boosted amplitudes (per your request)
+        float ampLow  = 0.35 + 2.2 * u_low;
+        float ampMid  = 0.25 + 1.6 * u_mid;
+        float ampHigh = 0.18 + 1.3 * u_high;
+
+        // Keep your added micro-motion character
+        float noiseAddA = sin(uv.x*30.0 + u_time*5.0)  * 0.008 * (u_low+0.3)  + sin(uv.x*70.0  + u_time*8.0 )*0.004;
+        float noiseAddB = sin(uv.x*40.0 + u_time*6.0)  * 0.007 * (u_mid+0.3)  + sin(uv.x*90.0  + u_time*9.0 )*0.004;
+        float noiseAddC = sin(uv.x*50.0 + u_time*7.0)  * 0.006 * (u_high+0.3) + sin(uv.x*110.0 + u_time*10.0)*0.004;
+
+        // Use stable, JS-integrated phases (independent per line)
+        float yA = 0.50 + sin(uv.x*8.0  + u_phaseA*1.00) * 0.08 * ampLow  + noiseAddA;
+        float yB = 0.50 + sin(uv.x*11.0 + u_phaseB*1.27) * 0.06 * ampMid  + noiseAddB;
+        float yC = 0.50 + sin(uv.x*14.0 + u_phaseC*1.44) * 0.05 * ampHigh + noiseAddC;
+
+        // Beat-ish thickness pulse from lows
+        float beat = pow(clamp(u_low*1.8, 0.0, 1.0), 1.6);
+        float thick = u_thickness * (1.0 + 0.9 * beat);
+
+        vec3 sA = stripe(uv, yA, u_colA_in, u_colA_out, thick,      u_low);
+        vec3 sB = stripe(uv, yB, u_colB_in, u_colB_out, thick*0.9,  u_mid);
+        vec3 sC = stripe(uv, yC, u_colC_in, u_colC_out, thick*0.8,  u_high);
+
+        vec3 light = sA*0.55 + sB*0.45 + sC*0.35;
+        float luma = dot(light, vec3(0.299,0.587,0.114));
+
+        // Background reacts a bit even when idle; more with lows
+        vec3 reactedBg = bg + light*(0.08 + u_low*0.15) + vec3(luma)*0.12;
+
+        // Static refined grain (very subtle)
+        float g = grain(uv * vec2(u_res.x/u_res.y,1.0));
+        reactedBg += g * 0.015;
+
+        vec3 col = reactedBg + light * 0.85;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+      });
+
+      scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+
+      // -------------------- STATIC NOISE TEXTURE --------------------
+      function makeNoiseTex() {
+        const s = 256;
+        const c = document.createElement("canvas");
+        c.width = s;
+        c.height = s;
+        const ctx = c.getContext("2d");
+        const img = ctx.createImageData(s, s);
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const v = (Math.random() * 255) | 0;
+          d[i] = d[i + 1] = d[i + 2] = v;
+          d[i + 3] = 255;
+        }
+        ctx.putImageData(img, 0, 0);
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        uniforms.u_noiseTex.value = tex;
+
+        // Also set CSS overlay bg (static, GPU-cheap)
+        const noiseEl = document.getElementById("noise");
+        if (noiseEl)
+          noiseEl.style.backgroundImage = `url(${c.toDataURL("image/png")})`;
+      }
+      makeNoiseTex();
+
+      // -------------------- LOOP / SPEED & AMPLITUDE --------------------
+      let last = performance.now();
+      let acc = 0,
+        frames = 0;
+      const fpsEl = document.getElementById("fps");
+
+      // Smoothed bands/energy for stable speed boosts
+      let smoothLow = 0,
+        smoothMid = 0,
+        smoothHigh = 0,
+        smoothEnergy = 0;
+
+      // Base speeds: very close when idle; will spread with energy
+      const BASE_A = 0.2,
+        BASE_B = 0.22,
+        BASE_C = 0.24;
+
+      function loop(now) {
+        const dt = (now - last) / 1000;
+        last = now;
+        uniforms.u_time.value += dt;
+
+        // Always progress base phases (idle motion)
+        uniforms.u_phaseA.value += dt * BASE_A;
+        uniforms.u_phaseB.value += dt * BASE_B;
+        uniforms.u_phaseC.value += dt * BASE_C;
+
+        if (analyser) {
+          analyser.getByteFrequencyData(freqData);
+          let low = 0,
+            mid = 0,
+            high = 0;
+          for (let i = 0; i < freqData.length; i++) {
+            const f = (i * sampleRate) / FFT_SIZE;
+            const v = freqData[i] / 255;
+            if (f < 200) low += v;
+            else if (f < 2000) mid += v;
+            else high += v;
+          }
+
+          // Normalize a touch stronger (bigger amplitude), then smooth
+          const nLow = Math.min(1.0, low / 30);
+          const nMid = Math.min(1.0, mid / 140);
+          const nHigh = Math.min(1.0, high / 140);
+
+          const a = 0.14; // smoothing factor
+          smoothLow += a * (nLow - smoothLow);
+          smoothMid += a * (nMid - smoothMid);
+          smoothHigh += a * (nHigh - smoothHigh);
+
+          // Slight amplitude boost (subtle, not cartoonish)
+          uniforms.u_low.value = Math.min(1.0, smoothLow * 1.15);
+          uniforms.u_mid.value = Math.min(1.0, smoothMid * 1.12);
+          uniforms.u_high.value = Math.min(1.0, smoothHigh * 1.1);
+
+          // Energy drives EXTRA horizontal speed (only when playing)
+          const rawEnergy = Math.min(
+            1,
+            0.6 * smoothLow + 0.3 * smoothMid + 0.1 * smoothHigh
+          );
+          const ae = 0.1;
+          smoothEnergy += ae * (rawEnergy - smoothEnergy);
+
+          if (isPlaying) {
+            // Spread speeds apart with energy. Non-linear for more “kick” on music.
+            const e = Math.pow(smoothEnergy, 1.15); // gentle curve
+            // Independent boosts per line (A<B<C) -> diverge more when playing
+            const boostA = 1.1 * e; // bass line: slowest
+            const boostB = 1.6 * e; // mid line
+            const boostC = 2.2 * e; // high line: fastest
+
+            uniforms.u_phaseA.value += dt * boostA;
+            uniforms.u_phaseB.value += dt * boostB;
+            uniforms.u_phaseC.value += dt * boostC;
+          }
+
+          // UI reflection intensity (still fine if you removed glass)
+          const intensity = Math.min(
+            1,
+            0.05 + smoothLow * 0.9 + smoothHigh * 0.35
+          );
+          document.documentElement.style.setProperty(
+            "--light-intensity",
+            intensity.toFixed(3)
+          );
+        }
+
+        // FPS every ~250ms
+        acc += dt;
+        frames++;
+        if (acc >= 0.25) {
+          const fps = Math.round(frames / acc);
+          if (fpsEl) fpsEl.textContent = `FPS: ${fps}`;
+          acc = 0;
+          frames = 0;
+        }
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+
+      // -------------------- RESIZE --------------------
+      addEventListener("resize", () => {
+        renderer.setSize(innerWidth, innerHeight);
+        uniforms.u_res.value.set(innerWidth, innerHeight);
+      });
+
+      // -------------------- CONTROLS --------------------
+      const btn = document.getElementById("playBtn");
+      if (btn) {
+        btn.onclick = async () => {
+          setupAudio();
+          if (audioCtx.state === "suspended") await audioCtx.resume();
+          if (!isPlaying) {
+            audioEl.play();
+            isPlaying = true;
+            btn.textContent = "Stop";
+          } else {
+            audioEl.pause();
+            isPlaying = false;
+            btn.textContent = "Play";
+          }
+        };
+      }
+
+      // -------------------- CURSOR --------------------
+      const cursor = document.getElementById("cursor");
+      addEventListener("mousemove", (e) => {
+        if (!cursor) return;
+        cursor.style.transform = `translate(${e.clientX}px,${e.clientY}px)`;
+      });
+    </script>
+  </body>
+</html>
