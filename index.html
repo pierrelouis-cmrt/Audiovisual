@@ -12,17 +12,37 @@
       rel="stylesheet"
     />
     <style>
+      /* ===============================================
+         COLOR MODES + PURPLE ACCENT + DYNAMIC GRAIN + RAND COLOR
+         (Minimal base; strong readability preserved)
+      ================================================ */
+
       :root {
-        --light-intensity: 0.1;
+        --bg-0: #0b0b10; /* slightly inky */
+        --bg-1: #0e0c14; /* plum hint */
+        --text-strong: #ffffff;
+        --text-muted: #c9ced3;
+        --glass-bg: rgba(18, 20, 22, 0.5);
+        --glass-brd: rgba(255, 255, 255, 0.12);
       }
+
       html,
       body {
         margin: 0;
         height: 100%;
         overflow: hidden;
-        background: #14100b;
-        color: #efe7d6;
-        cursor: none;
+        background: radial-gradient(
+            900px 700px at 20% 18%,
+            var(--bg-1),
+            transparent 60%
+          ),
+          radial-gradient(900px 700px at 80% 82%, var(--bg-1), transparent 55%),
+          var(--bg-0);
+        color: var(--text-strong);
+        cursor: none !important;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
       }
 
       canvas#gl {
@@ -40,101 +60,436 @@
         width: 150%;
         height: 150%;
         background-size: 180px 180px;
-        opacity: 0.18;
+        opacity: 0.1;
         mix-blend-mode: soft-light;
         pointer-events: none;
         z-index: 9;
-        filter: contrast(110%) brightness(98%);
+        filter: contrast(104%) brightness(100%);
       }
 
       .overlay {
         position: fixed;
         inset: 0;
-        display: grid;
-        place-items: center;
-        text-align: center;
         z-index: 20;
         pointer-events: none;
       }
-      .overlay .caption {
+      .overlay-slot {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        display: inline-block;
+        width: max-content;
+        text-align: center;
+        padding: 0.25rem 0;
+      }
+      .overlay-slot.top {
+        top: 12vh;
+      }
+      .overlay-slot.bottom {
+        bottom: 14vh;
+      }
+
+      .overlay-slot::before {
+        content: "";
+        position: absolute;
+        inset: -3% -2%;
+        z-index: -1;
+        border-radius: 28px;
+        background: radial-gradient(
+          50% 60% at 50% 50%,
+          rgba(6, 8, 10, 0.9),
+          rgba(6, 8, 10, 0.42) 60%,
+          transparent 85%
+        );
+        filter: blur(8px);
+      }
+
+      .caption,
+      .quote,
+      .attributions {
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+      }
+      .caption {
         font-family: "Bodoni Moda", serif;
         font-style: italic;
-        letter-spacing: 0.06em;
-        font-size: 1rem;
-        opacity: 0.75;
+        letter-spacing: 0.08em;
+        font-size: clamp(0.95rem, 1.2vw, 1.1rem);
+        color: var(--text-muted);
+        opacity: 0.96;
       }
-      .overlay .quote {
+      .quote {
         font-family: "Vina Sans", system-ui, -apple-system, sans-serif;
-        font-weight: 900;
+        font-weight: 800;
         text-transform: uppercase;
-        font-size: clamp(3rem, 9vw, 8rem);
-        letter-spacing: 0.02em;
-        color: rgba(255, 255, 255, 0.75);
-        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.95);
+        letter-spacing: 0.005em;
+        line-height: 0.86;
+        color: var(--text-strong);
+        -webkit-text-stroke: 0.35px rgba(0, 0, 0, 0.25);
+        text-shadow: 0 0 0.6px rgba(0, 0, 0, 0.3),
+          0 2px 10px rgba(0, 0, 0, 0.25);
       }
-      .overlay .attributions {
+      #quoteTop {
+        font-size: clamp(3rem, 9vw, 7.1rem);
+      }
+      #quoteBottom {
+        font-size: clamp(3rem, 9vw, 7.9rem);
+      }
+      .attributions {
         font-family: "Bodoni Moda", serif;
         font-style: italic;
-        opacity: 0.75;
+        color: var(--text-muted);
+        opacity: 0.96;
+        margin-top: 0.5rem;
       }
 
       .controls {
         position: fixed;
-        top: 14px;
-        left: 14px;
+        left: 16px;
+        bottom: 16px;
         z-index: 30;
+        display: flex;
+        gap: 10px;
+        align-items: center;
         pointer-events: auto;
       }
-      .btn {
-        padding: 8px 16px;
+      /* Color menu wrapper + hamburger toggle */
+      .color-menu {
+        --menu-icon-size: 44px;
+        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+        /* Animation tuning */
+        --radius-start: 28px; /* pill while sliding up */
+        --radius-open: 18px;  /* panel when open */
+        --items-duration: 260ms;
+        --width-duration: 260ms;
+        --child-stagger-1: 120ms; /* first child delay on open */
+        --child-stagger-2: 180ms; /* second child delay on open */
+        /* Label reveal origin (can be tuned per taste) */
+        --label-cx: 50%;
+        --label-cy: 50%;
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+      }
+      .btn.btn-icon {
+        width: var(--menu-icon-size);
+        height: var(--menu-icon-size);
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0;
         border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(20, 20, 20, 0.35);
-        color: #fff;
-        font-weight: 500;
-        cursor: pointer;
-        backdrop-filter: blur(8px) saturate(120%);
-        font-size: 0.85rem;
-        opacity: 0.7;
-        transition: opacity 0.2s ease;
+        position: relative; /* stack icons absolutely */
       }
-      .btn:hover {
+      /* Stack both icons perfectly centered so they don't shift layout */
+      .btn.btn-icon .icon {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 22px;
+        height: 22px;
+        transform: translate(-50%, -50%);
+        opacity: 0.98;
+        transition: opacity 200ms var(--ease-out),
+          transform 260ms var(--ease-out);
+        will-change: transform, opacity;
+      }
+      .btn.btn-icon .close-icon {
+        opacity: 0;
+        transform: translate(-50%, -50%) rotate(-90deg) scale(0.9);
+      }
+      .color-menu.open .btn.btn-icon .hamburger-icon {
+        opacity: 0;
+        transform: translate(-50%, -50%) rotate(90deg) scale(0.9);
+      }
+      .color-menu.open .btn.btn-icon .close-icon {
         opacity: 1;
+        transform: translate(-50%, -50%) rotate(0deg) scale(1);
       }
+      /* Vertical flyout for settings buttons: slide-up with subtle squash, then extend */
+      .menu-items {
+        position: absolute;
+        left: 0;
+        bottom: calc(100% + 10px);
+        overflow: hidden;
+        /* Start fully clipped vertically with a rounded pill */
+        clip-path: inset(100% 0 0 0 round var(--radius-start));
+        /* Subtle squash while emerging */
+        transform: translateY(8px) scaleY(0.96);
+        transform-origin: bottom left;
+        pointer-events: none;
+        will-change: clip-path, transform;
+        transition: clip-path var(--items-duration) var(--ease-out),
+          transform var(--items-duration) var(--ease-out);
+      }
+      .color-menu.open .menu-items {
+        /* Reveal upward, also morph rounding from pill -> panel */
+        clip-path: inset(0 0 0 0 round var(--radius-open));
+        transform: translateY(0) scaleY(1);
+        pointer-events: auto;
+      }
+      /* Inner wrapper: width gain via gentle scaleX (keeps full buttons visible) */
+      .menu-width {
+        display: grid;
+        gap: 10px;
+        width: max-content;
+        transform: scaleX(0.86);
+        transform-origin: bottom left;
+        will-change: transform;
+        transition: transform var(--width-duration) var(--ease-out);
+      }
+      .color-menu.open .menu-width { transform: scaleX(1); }
+      /* Direction-aware delays so open = slide then widen, close = widen then slide */
+      .color-menu.anim-opening .menu-items { transition-delay: 0ms; }
+      .color-menu.anim-opening .menu-width { transition-delay: 120ms; }
+      .color-menu.anim-closing .menu-width { transition-delay: 0ms; }
+      .color-menu.anim-closing .menu-items { transition-delay: 120ms; }
+
+      /* Staggered button reveal inside the menu (subtle slide + fade) */
+      .menu-width > .btn {
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+        will-change: transform, opacity, background-color;
+        transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
+          opacity 200ms var(--ease-out),
+          background-color 200ms var(--ease-out);
+      }
+      .color-menu.open .menu-width > .btn {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        background-color: var(--glass-bg);
+      }
+      /* While opening: show full outline first (empty pill) */
+      .color-menu.anim-opening .menu-width > .btn {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        background-color: transparent;
+      }
+      /* Stagger only while opening so close feels crisp */
+      .color-menu.anim-opening .menu-width > .btn:nth-child(1) {
+        transition-delay: var(--child-stagger-1);
+      }
+      .color-menu.anim-opening .menu-width > .btn:nth-child(2) {
+        transition-delay: var(--child-stagger-2);
+      }
+      .color-menu.anim-closing .menu-width > .btn { transition-delay: 0ms; }
+
+      /* Labels: always visible, no animation */
+      .menu-width > .btn .btn-label {
+        display: inline-block;
+        opacity: 1;
+        transform: none;
+        clip-path: none;
+        transition: none !important;
+      }
+      /* Keep the icon visible as an X when open */
+      .btn {
+        padding: 10px 18px;
+        border-radius: 999px;
+        border: 1px solid var(--glass-brd);
+        background: var(--glass-bg);
+        color: var(--text-strong);
+        cursor: none !important;
+        font-weight: 600;
+        font-size: 0.9rem;
+        letter-spacing: 0.02em;
+        backdrop-filter: blur(10px) saturate(120%);
+        opacity: 0.96;
+        /* magnetic transform variables */
+        --magnet-x: 0px;
+        --magnet-y: 0px;
+        --hover-ty: 0px;
+        --press-scale: 1;
+        transform: translate(var(--magnet-x), var(--magnet-y))
+          translateY(var(--hover-ty)) scale(var(--press-scale));
+        transition: opacity 0.2s ease, transform 0.12s ease,
+          box-shadow 0.2s ease;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+        position: relative; /* for ripple positioning */
+        overflow: hidden; /* contain ripple inside button */
+      }
+      .btn:hover { opacity: 1; --hover-ty: -1px; }
+      .btn:active { /* Simple physical click: tiny shrink */ --press-scale: 0.96; --hover-ty: 0px; }
 
       .fps {
         position: fixed;
-        top: 14px;
-        right: 14px;
+        right: 16px;
+        bottom: 16px;
+        z-index: 30;
         padding: 6px 12px;
         border-radius: 999px;
-        z-index: 30;
-        font-family: ui-monospace, monospace;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+          "Liberation Mono", monospace;
         font-size: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(20, 20, 20, 0.35);
-        backdrop-filter: blur(8px) saturate(120%);
-        opacity: 0.6;
+        border: 1px solid var(--glass-brd);
+        background: var(--glass-bg);
+        color: var(--text-muted);
+        backdrop-filter: blur(10px) saturate(120%);
+        opacity: 0.92;
         transition: opacity 0.2s ease;
       }
       .fps:hover {
         opacity: 1;
       }
 
+      /* Button ripple effect */
+      /* Register animatable custom properties for the mask radius */
+      @property --r {
+        syntax: "<length>";
+        initial-value: 0px;
+        inherits: false;
+      }
+      @property --rx {
+        syntax: "<length>";
+        initial-value: 0px;
+        inherits: false;
+      }
+      @property --ry {
+        syntax: "<length>";
+        initial-value: 0px;
+        inherits: false;
+      }
+
+      /* Phase 1: disc grows to fill (invert underlying colors) */
+      .btn .ripple-in {
+        position: absolute;
+        left: var(--rx);
+        top: var(--ry);
+        border-radius: 999px;
+        /* Use white + difference to invert what's underneath */
+        background: #ffffff;
+        mix-blend-mode: difference;
+        transform: translate(-50%, -50%) scale(0);
+        pointer-events: none;
+        will-change: transform, opacity;
+        animation: ripple-in 220ms ease-out forwards;
+      }
+      @keyframes ripple-in {
+        0% {
+          transform: translate(-50%, -50%) scale(0);
+          opacity: 0.98;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 0.95;
+        }
+      }
+
+      /* Phase 2: full overlay (inverting) with a hole expanding from the click point */
+      .btn .ripple-out {
+        position: absolute;
+        inset: 0;
+        /* White + difference => dynamic inversion of backdrop */
+        background: #ffffff;
+        mix-blend-mode: difference;
+        pointer-events: none;
+        will-change: -webkit-mask-image, mask-image;
+        /* Create a transparent hole that starts at 0 and grows to --maxR */
+        -webkit-mask-image: radial-gradient(
+          circle at var(--rx) var(--ry),
+          rgba(0, 0, 0, 0) 0 var(--r),
+          rgba(0, 0, 0, 1) calc(var(--r) + 1px)
+        );
+        mask-image: radial-gradient(
+          circle at var(--rx) var(--ry),
+          rgba(0, 0, 0, 0) 0 var(--r),
+          rgba(0, 0, 0, 1) calc(var(--r) + 1px)
+        );
+        /* JS animates --r; no CSS keyframes to avoid browser quirks */
+      }
+
+      /* Fallback for browsers without mask-image on elements */
+      @supports not (
+        (-webkit-mask-image: radial-gradient(#000 0 0)) or
+          (mask-image: radial-gradient(#000 0 0))
+      ) {
+        .btn .ripple-out {
+          -webkit-mask-image: none;
+          mask-image: none;
+          /* Use clip-path as a coarse fallback */
+          clip-path: circle(var(--r) at var(--rx) var(--ry));
+        }
+      }
+
+      /* Cursor */
       .cursor {
         position: fixed;
-        width: 14px;
-        height: 14px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
-        background: rgba(255, 215, 120, 0.95);
-        box-shadow: 0 0 20px rgba(255, 220, 120, 0.9);
+        background: #ffffff; /* white + difference => invert */
+        mix-blend-mode: difference;
+        box-shadow: none;
         transform: translate(-50%, -50%);
         z-index: 100;
         pointer-events: none;
-        transition: filter 0.15s ease;
+        transition: filter 0.15s ease, transform 0.08s ease, width 0.12s ease,
+          height 0.12s ease, border-radius 0.12s ease, box-shadow 0.12s ease,
+          background 0.12s ease;
+      }
+      .cursor::after {
+        content: "";
+        position: absolute;
+        inset: -8px;
+        border-radius: 50%;
+        border: 1px solid rgba(235, 226, 255, 0.45);
+        mix-blend-mode: difference;
+        transition: opacity 0.15s ease, transform 0.2s ease,
+          border-color 0.12s ease, filter 0.1s ease;
+        /* Ring can drift while inner pill stays fixed */
+        transform: translate(var(--ring-ox, 0px), var(--ring-oy, 0px));
       }
       .cursor.snap {
-        filter: brightness(1.6);
+        filter: brightness(1.1);
+        transform: translate(-50%, -50%) scale(1.06);
+      }
+      .cursor.btn-hover {
+        /* Size set dynamically while magneted onto a button */
+        border-radius: 999px;
+        background: #ffffff; /* keep white for inversion */
+        box-shadow: none;
+      }
+      .cursor.btn-hover::after {
+        inset: -6px;
+        border-radius: 999px;
+        border-color: rgba(190, 170, 255, 0.6);
+      }
+      .cursor.text-hover {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #ffffff; /* ensure inversion even over text */
+        box-shadow: none;
+      }
+      .cursor.text-hover::after {
+        inset: -10px;
+        border-radius: 999px;
+        transform: translate(var(--ring-ox, 0px), var(--ring-oy, 0px)) scale(1.05);
+      }
+
+      /* Beat reaction: brighten and distort the ring */
+      .cursor.beat::after {
+        border-color: rgba(255, 255, 255, 0.6);
+        opacity: 0.98;
+        filter: url(#cursorSpiky);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .btn,
+        .fps,
+        .cursor,
+        .menu-items,
+        .menu-width,
+        .menu-width > .btn,
+        .menu-width > .btn .btn-label {
+          transition: none;
+        }
+      }
+
+      /* Touch/coarse pointers: never show custom cursor */
+      @media (hover: none), (pointer: coarse) {
+        .cursor { display: none !important; }
+        html, body, .btn { cursor: auto !important; }
       }
     </style>
   </head>
@@ -142,26 +497,100 @@
     <canvas id="gl"></canvas>
     <div class="noise-overlay" id="noise"></div>
 
-    <div class="overlay">
-      <div>
-        <div class="caption">Sight tuned to bass and breath</div>
-        <div class="quote">Where Silence Shapes Sound</div>
-        <div class="attributions">Music by KOSIKK</div>
+    <div class="overlay" aria-hidden="true">
+      <div class="overlay-slot top" id="titleTop">
+        <div class="caption" id="caption">Sight tuned to bass and breath</div>
+        <div class="quote" id="quoteTop">Where Silence</div>
+      </div>
+      <div class="overlay-slot bottom" id="titleBottom">
+        <div class="quote" id="quoteBottom">Shapes Sound</div>
+        <div class="attributions" id="attrib">
+          Song: Egzod, Maestro Chives, Neoni - Royalty
+        </div>
       </div>
     </div>
 
-    <div class="controls"><button class="btn" id="playBtn">Play</button></div>
-    <div class="fps" id="fps">FPS: —</div>
+    <div class="controls">
+      <button class="btn" id="playBtn" aria-live="polite">
+        <span class="btn-label">Play</span>
+      </button>
+      <div class="color-menu" id="colorMenu" aria-label="Color settings menu">
+        <button
+          class="btn btn-icon"
+          id="menuBtn"
+          aria-label="Open color settings"
+          title="Color settings"
+        >
+          <svg
+            class="icon hamburger-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              d="M4 7h16M4 12h16M4 17h16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+          <svg class="icon close-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6l-12 12"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+        <div class="menu-items" id="menuItems">
+          <div class="menu-width" id="menuWidth">
+            <button class="btn" id="colorBtn" aria-live="polite">
+              <span class="btn-label">Color: Accent</span>
+            </button>
+            <button class="btn" id="randBtn" aria-live="polite">
+              <span class="btn-label">Randomize Color</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="fps" id="fps" aria-live="polite">FPS: —</div>
     <div class="cursor" id="cursor"></div>
+
+    <!-- SVG filter for spiky/wavy ring distortion on beat -->
+    <svg width="0" height="0" style="position:absolute">
+      <defs>
+        <filter id="cursorSpiky" x="-20%" y="-20%" width="140%" height="140%" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+          <!-- Turbulence driving displacement; parameters animated via JS -->
+          <feTurbulence id="cursorTurbulence" type="fractalNoise" baseFrequency="1.0" numOctaves="1" seed="2" stitchTiles="stitch" />
+          <feDisplacementMap id="cursorDisplace" in="SourceGraphic" in2="cursorTurbulence" scale="0" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
 
     <script type="module">
       import * as THREE from "https://unpkg.com/three@0.160.1/build/three.module.js";
 
+      // Hide custom cursor on touch/coarse-pointer devices
+      try {
+        const isNoHover = window.matchMedia('(hover: none)').matches || window.matchMedia('(pointer: coarse)').matches;
+        if (isNoHover) {
+          const c = document.getElementById('cursor');
+          if (c) c.style.display = 'none';
+        }
+      } catch {}
+
       // --- AUDIO ---
-      const AUDIO_URL = "https://assets.codepen.io/7558/kosikk-slow-motion.ogg";
+      const AUDIO_URL =
+        "./Maestro Chives, Egzod, Neoni - Royalty [NCS Release].mp3";
+      // Start playback at 1:07 (67 seconds)
+      const START_AT_SECONDS = 67;
       let audioCtx,
         audioEl,
         analyser,
+        gainNode,
         isPlaying = false,
         sourceNode;
       const FFT_SIZE = 1024;
@@ -176,15 +605,53 @@
         audioEl.crossOrigin = "anonymous";
         audioEl.src = AUDIO_URL;
         audioEl.loop = true;
+        audioEl.preload = "metadata";
+        // Ensure we seek to the desired offset when metadata is ready
+        audioEl.addEventListener(
+          "loadedmetadata",
+          () => {
+            try {
+              audioEl.currentTime = START_AT_SECONDS;
+              audioEl._startApplied = true;
+            } catch {}
+          },
+          { once: true }
+        );
         sourceNode = audioCtx.createMediaElementSource(audioEl);
         sourceNode.connect(analyser);
-        analyser.connect(audioCtx.destination);
+        // Insert a gain node after the analyser for fade in/out
+        gainNode = audioCtx.createGain();
+        // start silent; fade in when playing
+        try {
+          gainNode.gain.value = 0;
+        } catch {}
+        analyser.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
       }
 
-      // --- ANALYSIS (ported almost 1:1 from the reference) ---
+      // --- SIMPLE FADES ---
+      function fadeTo(target, durationSec = 0.3) {
+        if (!audioCtx || !gainNode) return;
+        const now = audioCtx.currentTime;
+        const g = gainNode.gain;
+        try {
+          g.cancelScheduledValues(now);
+          // Use current value as starting point
+          g.setValueAtTime(g.value, now);
+          g.linearRampToValueAtTime(target, now + durationSec);
+        } catch {}
+      }
+      function fadeInQuick() {
+        fadeTo(1.0, 0.3);
+      }
+      function fadeOutQuick() {
+        fadeTo(0.0, 0.25);
+      }
+
+      // --- ANALYSIS ---
       let lowFreq = 0,
         midFreq = 0,
-        highFreq = 0; // smoothed 0..1
+        highFreq = 0;
       let kickDetected = false,
         kickEnergy = 0,
         kickImpact = 0,
@@ -206,23 +673,21 @@
         [160, 300],
         [300, 500],
       ];
-
-      function getWeightedAverage(array) {
-        if (!array.length) return 0;
+      const getWeightedAverage = (arr) => {
+        if (!arr.length) return 0;
         let sum = 0,
           w = 0,
           maxv = 0;
         const emph = 1.5;
-        for (let i = 0; i < array.length; i++) {
-          const v = array[i] / 255;
+        for (let i = 0; i < arr.length; i++) {
+          const v = arr[i] / 255;
           maxv = Math.max(maxv, v);
           sum += Math.pow(v, emph);
           w++;
         }
         const avg = sum / w;
         return avg * 0.7 + maxv * 0.3;
-      }
-
+      };
       function updateFrequencies() {
         if (!isPlaying || !analyser) return;
         analyser.getByteFrequencyData(dataArray);
@@ -250,36 +715,33 @@
           kickEnergy = Math.min(1.0, kickAvg * 2.0);
           kickImpact = 10;
           lastKickTime = now;
+          // Pulse the cursor on beat
+          try { triggerCursorBeat(kickEnergy); } catch {}
         } else {
           kickEnergy *= kickDecay;
           if (kickEnergy < 0.05) kickDetected = false;
           if (kickImpact > 0) kickImpact--;
         }
-
         const combinedBass = (bandEnergies[1] * 1.2 + bandEnergies[2]) / 2.2;
         const combinedMid = (bandEnergies[3] + bandEnergies[4]) / 2.0;
         const combinedHigh =
           (bandEnergies[5] + bandEnergies[6] + bandEnergies[7]) / 3.0;
-        const smooth = (prev, tgt, atk, dec) =>
-          prev + (tgt > prev ? atk : dec) * (tgt - prev);
+        const smooth = (p, t, a, d) => p + (t > p ? a : d) * (t - p);
         lowFreq = smooth(lowFreq, combinedBass, 0.9, 0.12);
         midFreq = smooth(midFreq, combinedMid, 0.4, 0.2);
         highFreq = smooth(highFreq, combinedHigh, 0.5, 0.2);
         lowFreq = Math.max(lowFreq, kickEnergy * 0.6);
-
-        // bounce value
         let bounce = 0.0;
         if (kickImpact > 0) bounce = Math.pow(kickImpact / 10, 0.6) * 0.03;
         bounce += kickEnergy * 0.025;
         uniforms.bounceEffect.value = bounce;
-        // push to uniforms
         uniforms.lowFreq.value = lowFreq;
         uniforms.midFreq.value = midFreq;
         uniforms.highFreq.value = highFreq;
         uniforms.kickEnergy.value = kickEnergy;
       }
 
-      // --- THREE + SHADER (directly adapted) ---
+      // --- THREE + SHADER ---
       const renderer = new THREE.WebGLRenderer({
         canvas: document.getElementById("gl"),
         antialias: true,
@@ -289,69 +751,112 @@
       const scene = new THREE.Scene();
       const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-      const vertexShader = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
+      const vertexShader = `varying vec2 vUv; void main(){ vUv=uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`;
       const fragmentShader = `
 precision highp float; varying vec2 vUv;
 uniform vec2 iResolution; uniform float iTime; uniform vec2 iMouse;
-uniform float lowFreq, midFreq, highFreq; uniform bool isPlaying; uniform float transitionFactor; uniform float lineStraightness; uniform float idleAnimation; uniform float idleWaveHeight;
-uniform float kickEnergy; uniform float beatPhase; uniform float bounceEffect;
-uniform float baseSpeed; uniform float idleSpeed; uniform float bassReactivity; uniform float midReactivity; uniform float highReactivity; uniform float kickReactivity; uniform float bounceIntensity; uniform float waveIntensity; uniform float waveComplexity; uniform float rippleIntensity; uniform float lineThickness;
+uniform float lowFreq, midFreq, highFreq; uniform bool isPlaying; uniform float transitionFactor; uniform float lineStraightness; uniform float idleAnimation; uniform float idleWaveHeight; uniform float phase;
+uniform float kickEnergy; uniform float bounceEffect; uniform float baseSpeed; uniform float idleSpeed; uniform float bassReactivity; uniform float midReactivity; uniform float highReactivity; uniform float bounceIntensity; uniform float waveIntensity; uniform float waveComplexity; uniform float rippleIntensity; uniform float lineThickness;
 uniform bool enableGrain; uniform float grainIntensity; uniform float grainSpeed; uniform float grainMean; uniform float grainVariance; uniform int grainBlendMode;
-uniform vec3 bgColorDown, bgColorUp, color1In, color1Out, color2In, color2Out, color3In, color3Out;
+/* Readability */
+uniform vec4 safeRectA; uniform vec4 safeRectB; uniform float safeFeather; uniform float safeStrength; uniform float textRepel;
+/* Colors */
+uniform vec3 bgColorDown, bgColorUp; 
+uniform vec3 l1In, l1Out, l2In, l2Out, l3In, l3Out; 
+uniform vec3 accentBass, accentMid, accentHigh; 
+uniform float colorLevel; // 0=minimal, 1=vivid
+uniform float bgImpact; 
 
-float squared(float v){ return v*v; }
-float smootherstep(float e0,float e1,float x){ float t=clamp((x-e0)/(e1-e0),0.0,1.0); return t*t*t*(t*(t*6.0-15.0)+10.0);} 
-vec3 channel_mix(vec3 a, vec3 b, vec3 w){ return vec3(mix(a.r,b.r,w.r), mix(a.g,b.g,w.g), mix(a.b,b.b,w.b)); }
-float gaussian(float z,float u,float o){ return (1.0/(o*sqrt(2.0*3.1415)))*exp(-(((z-u)*(z-u))/(2.0*(o*o)))); }
-vec3 screen(vec3 a, vec3 b, float w){ return mix(a, vec3(1.0)-(vec3(1.0)-a)*(vec3(1.0)-b), w); }
-vec3 overlay(vec3 a, vec3 b, float w){ return mix(a, channel_mix(2.0*a*b, vec3(1.0)-2.0*(vec3(1.0)-a)*(vec3(1.0)-b), step(vec3(0.5), a)), w); }
-vec3 soft_light(vec3 a, vec3 b, float w){ return mix(a, pow(a, pow(vec3(2.0), 2.0*(vec3(0.5)-b))), w); }
-vec3 applyGrain(vec3 color, vec2 uv){ if(!enableGrain) return color; float t=iTime*grainSpeed; float seed=dot(uv, vec2(12.9898,78.233)); float noise=fract(sin(seed)*43758.5453+t); noise=gaussian(noise, grainMean, grainVariance*grainVariance); vec3 g=vec3(noise)*(1.0-color); if(grainBlendMode==0){ color+=g*grainIntensity; } else if(grainBlendMode==1){ color=screen(color,g,grainIntensity);} else if(grainBlendMode==2){ color=overlay(color,g,grainIntensity);} else if(grainBlendMode==3){ color=soft_light(color,g,grainIntensity);} else if(grainBlendMode==4){ color=max(color, g*grainIntensity);} return color; }
-float kickRipple(vec2 uv,float energy,float time){ float dist=distance(uv, vec2(0.5)); float width=0.05; float speed=1.2; float r1=smootherstep(energy*speed*time-width, energy*speed*time, dist); r1*=smootherstep(dist, dist+width, energy*speed*time+width); float r2=smootherstep(energy*speed*(time-0.2)-width, energy*speed*(time-0.2), dist); r2*=smootherstep(dist, dist+width, energy*speed*(time-0.2)+width); return (r1 + r2*0.5) * energy * 0.7; }
+float sq(float v){return v*v;} float smoother(float e0,float e1,float x){float t=clamp((x-e0)/(e1-e0),0.0,1.0);return t*t*t*(t*(t*6.0-15.0)+10.0);} 
+float sdBox(vec2 p, vec2 c, vec2 h){ vec2 d=abs(p-c)-h; return length(max(d,0.0)) + min(max(d.x,d.y),0.0);} 
+float maskBox(vec2 p, vec2 c, vec2 h, float f){ float d=sdBox(p,c,h); return 1.0 - smoothstep(0.0, f, d);} 
 
-void main(){ vec2 p = vUv; vec3 bgCol = mix(bgColorDown, bgColorUp, clamp(p.y*2.0,0.0,1.0));
-  float speed = mix(idleSpeed, baseSpeed, transitionFactor);
-  float ballVisibility = mix(0.8, 0.2, transitionFactor);
-  float straightnessFactor = mix(1.0, lineStraightness, transitionFactor);
-  float idleWave = idleWaveHeight * sin(p.x*5.0 + idleAnimation*0.2);
-  float bassPulse = squared(lowFreq) * bassReactivity * transitionFactor; float midPulse=squared(midFreq)*midReactivity*transitionFactor; float highPulse=squared(highFreq)*highReactivity*transitionFactor; float kickPulse=squared(kickEnergy)*kickReactivity*1.5*transitionFactor; float bounce=bounceEffect*bounceIntensity*transitionFactor;
-  float curveIntensity = mix(idleWaveHeight, 0.05 + waveIntensity*(bassPulse + kickPulse*0.7), transitionFactor); float curveSpeed = speed;
-  float curve = curveIntensity * sin((6.25*p.x) + (curveSpeed*iTime));
-  float ripple = rippleIntensity * kickRipple(p, kickEnergy, mod(iTime,10.0)) * transitionFactor;
-  float audioWave = mix(0.0, (0.1*sin(p.x*20.0*waveComplexity)*bassPulse + 0.08*sin(p.x*30.0*waveComplexity)*midPulse + 0.05*sin(p.x*50.0*waveComplexity)*highPulse)/straightnessFactor, transitionFactor);
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+float vnoise(vec2 x){ vec2 i=floor(x); vec2 f=fract(x);
+  float a=hash(i); float b=hash(i+vec2(1.0,0.0)); float c=hash(i+vec2(0.0,1.0)); float d=hash(i+vec2(1.0,1.0)); vec2 u=f*f*(3.0-2.0*f);
+  return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
+}
 
-  float lineAFreq = 40.0*waveComplexity + 80.0*bassPulse + 90.0*kickPulse; float lineASpeed = 1.5*speed + 6.0*bassPulse + 6.0*kickPulse;
-  float lineAWave = mix(idleWave, (0.01 + 0.05*bassPulse + 0.1*kickPulse)/straightnessFactor, transitionFactor);
-  float kickWaveEffect = 0.0; if(kickEnergy>0.1){ kickWaveEffect = kickEnergy * 0.3 * sin(15.0*(p.x - iTime*0.5)) * transitionFactor; }
-  float lineAOffset = bassPulse*0.3*sin(p.x*10.0 - iTime*2.0) + kickWaveEffect*0.7;
-  float lineAY = 0.5; float lineAActive = lineAY + curve + audioWave + lineAWave*sin((lineAFreq*p.x)+(-lineASpeed*iTime)) + lineAOffset - bounce; float lineAIdle = lineAY + idleWave; float lineAAnim = mix(lineAIdle, lineAActive, transitionFactor);
-  float lineAThick = lineThickness * (1.0 + bassPulse*0.4 + kickPulse*0.8);
-  float lineADist = distance(p.y, lineAAnim) * (2.0 / lineAThick); float lineAShape = smootherstep(1.0 - clamp(lineADist,0.0,1.0), 1.0, 0.99);
-  vec3 kickColor = vec3(1.0,0.7,0.3);
-  vec3 enhanced1In = mix(color1In, kickColor, kickEnergy * 0.6 * transitionFactor); vec3 enhanced1Out = mix(color1Out, vec3(1.0,0.5,0.0), kickEnergy * 0.4 * transitionFactor);
-  vec3 lineACol = (1.0 - lineAShape) * vec3(mix(enhanced1In, enhanced1Out, lineAShape));
+vec3 applyGrain(vec3 color, vec2 uv){ if(!enableGrain) return color; float t=iTime*grainSpeed; float seed=dot(uv, vec2(12.9898,78.233)); float n=fract(sin(seed)*43758.5453+t); float g=(1.0/(grainVariance*sqrt(2.0*3.1415)))*exp(-((n-grainMean)*(n-grainMean))/(2.0*grainVariance*grainVariance)); vec3 gg=vec3(g)*(1.0-color); if(grainBlendMode==0){ color+=gg*grainIntensity; } else { color=max(color, gg*grainIntensity);} return color; }
 
-  float lineBFreq = 50.0*waveComplexity + 100.0*midPulse; float lineBSpeed = 2.0*speed + 8.0*midPulse; float lineBWave = mix(idleWave*0.8, (0.01+0.05*midPulse)/straightnessFactor, transitionFactor);
-  float lineBOffset = midPulse*0.2*sin(p.x*15.0 - iTime*1.5) + kickEnergy*0.1*sin(p.x*25.0 - iTime*3.0) * transitionFactor; float lineBY=0.5; float lineBActive = lineBY + curve - audioWave + lineBWave * sin((lineBFreq*p.x) + (lineBSpeed*iTime)) * sin(lineBSpeed*iTime) + lineBOffset - bounce*0.5; float lineBIdle = lineBY + idleWave*0.8; float lineBAnim = mix(lineBIdle, lineBActive, transitionFactor);
-  float lineBThick = lineThickness * (1.0 + midPulse*0.3 + kickEnergy*0.3*transitionFactor);
-  float lineBDist = distance(p.y, lineBAnim) * (2.0 / lineBThick); float lineBShape = smootherstep(1.0 - clamp(lineBDist,0.0,1.0), 1.0, 0.99);
-  vec3 enhanced2In = mix(color2In, vec3(1.0,0.5,0.5), kickEnergy*0.3*transitionFactor); vec3 lineBCol = (1.0 - lineBShape) * vec3(mix(enhanced2In, color2Out, lineBShape));
+void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.0));
+  float speed=mix(idleSpeed, baseSpeed, transitionFactor);
+  // Keep lines calmer when paused (higher straightness at idle)
+  float str=mix(lineStraightness, 1.0, transitionFactor);
+  float idle=idleWaveHeight * sin(p.x*5.0 + idleAnimation*0.2);
+  float b=sq(lowFreq)*bassReactivity*transitionFactor; float m=sq(midFreq)*midReactivity*transitionFactor; float h=sq(highFreq)*highReactivity*transitionFactor; float bounce=bounceEffect*bounceIntensity*transitionFactor;
 
-  float lineCFreq = 60.0*waveComplexity + 120.0*highPulse; float lineCSpeed = 2.5*speed + 10.0*highPulse; float lineCWave = mix(idleWave*1.2, (0.01+0.05*highPulse)/straightnessFactor, transitionFactor); float lineCOffset = highPulse*0.15*sin(p.x*20.0 - iTime*1.0);
-  float lineCY=0.5; float lineCActive = lineCY + curve*0.7 - audioWave*0.5 + lineCWave * sin((lineCFreq*p.x) + (lineCSpeed*iTime)) * sin(lineCSpeed*(iTime+0.1)) + lineCOffset - bounce*0.3; float lineCIdle = lineCY + idleWave*1.2; float lineCAnim = mix(lineCIdle, lineCActive, transitionFactor);
-  float lineCThick = lineThickness * (1.0 + highPulse*0.2 + kickEnergy*0.1*transitionFactor);
-  float lineCDist = distance(p.y, lineCAnim) * (2.0 / lineCThick); float lineCShape = smootherstep(1.0 - clamp(lineCDist,0.0,1.0), 1.0, 0.99);
-  vec3 lineCCol = (1.0 - lineCShape) * vec3(mix(color3In, color3Out, lineCShape));
+  float maskA=maskBox(p, safeRectA.xy, safeRectA.zw, safeFeather);
+  float maskB=maskBox(p, safeRectB.xy, safeRectB.zw, safeFeather);
+  float inSafe=max(maskA, maskB);
+  float repel=textRepel * inSafe * (0.5 + 0.5*b);
+  float repelDirA=sign(p.y - safeRectA.y); float repelDirB=sign(p.y - safeRectB.y);
 
-  float ballASize = 0.5 + 0.4*bassPulse + kickEnergy*1.2*transitionFactor; float ballAX = 0.2 + 0.1*sin(iTime*0.2*speed)*midPulse; float ballAD = distance(p, vec2(ballAX, lineAAnim)); float ballAShape = smootherstep(1.0 - clamp(ballAD*ballASize,0.0,1.0), 1.0, 0.99); vec3 ballACol = (1.0 - ballAShape) * vec3(mix(enhanced1In, enhanced1Out, ballAShape)) * mix(1.0, ballVisibility, transitionFactor);
-  float ballBSize = 0.5 + 0.4*highPulse + kickEnergy*0.3*transitionFactor; float ballBX = 0.8 - 0.1*sin(iTime*0.3*speed)*midPulse; float ballBD = distance(p, vec2(ballBX, lineBAnim)); float ballBShape = smootherstep(1.0 - clamp(ballBD*ballBSize,0.0,1.0), 1.0, 0.99); vec3 ballBCol = (1.0 - ballBShape) * vec3(mix(enhanced2In, color2Out, ballBShape)) * mix(1.0, ballVisibility, transitionFactor);
-  float ballCSize = 0.5 + 0.4*highPulse + kickEnergy*0.1*transitionFactor; float ballCX = 0.5 + 0.15*sin(iTime*0.4*speed)*highPulse; float ballCD = distance(p, vec2(ballCX, lineCAnim)); float ballCShape = smootherstep(1.0 - clamp(ballCD*ballCSize,0.0,1.0), 1.0, 0.99); vec3 ballCCol = (1.0 - ballCShape) * vec3(mix(color3In, color3Out, ballCShape)) * mix(1.0, ballVisibility, transitionFactor);
+  // Keep base motion smaller when idle to avoid sudden wiggles on stop
+  float baseAmp = mix(0.02, 0.045, transitionFactor);
+  // Use externally integrated phase so toggling play/stop doesn't jump position
+  float curve = (baseAmp + 0.05*(b + 0.6*m)) * sin((6.25*p.x) + phase);
+  float wave = (0.07*b + 0.05*m + 0.03*h)/str * (sin(p.x*18.0*waveComplexity) + 0.5*sin(p.x*36.0*waveComplexity));
 
-  bgCol = mix(bgCol, mix(bgCol, vec3(1.0), 0.3), kickEnergy * 0.5 * transitionFactor); // slightly stronger than ref for more impact
-  vec3 rippleCol = vec3(1.0, 0.8, 0.4) * ripple * transitionFactor;
-  vec3 fcolor = bgCol + lineACol + lineBCol + lineCCol + ballACol + ballBCol + ballCCol + rippleCol;
-  fcolor = applyGrain(fcolor, p);
-  gl_FragColor = vec4(fcolor, 1.0);
+  // LINE A (bass)
+  float yA = 0.46 + idle + curve + wave + 0.28*b*sin(p.x*10.0 - iTime*2.0) + repel*mix(repelDirA,repelDirB,0.5) - bounce;
+  float tA = lineThickness * (1.0 + 0.35*b);
+  float dA = abs(p.y - yA) * (2.0 / tA);
+  float sA = smoother(1.0 - clamp(dA,0.0,1.0),1.0,0.995);
+  vec3 baseA = mix(l1In, l1Out, sA);
+  vec3 accA = mix(baseA, accentBass, 0.85);
+  vec3 cA = (1.0 - sA) * mix(baseA, accA, colorLevel * (0.35 + 0.65*b));
+
+  // LINE B (mid)
+  float yB = 0.5 + idle - curve + 0.24*m*sin(p.x*13.0 - iTime*1.6) + repel*0.7*mix(repelDirA,repelDirB,0.5) - 0.5*bounce;
+  float tB = lineThickness * (1.0 + 0.28*m);
+  float dB = abs(p.y - yB) * (2.0 / tB);
+  float sB = smoother(1.0 - clamp(dB,0.0,1.0),1.0,0.995);
+  vec3 baseB = mix(l2In, l2Out, sB);
+  vec3 accB = mix(baseB, accentMid, 0.9);
+  vec3 cB = (1.0 - sB) * mix(baseB, accB, colorLevel * (0.35 + 0.65*m));
+
+  // LINE C (high)
+  float yC = 0.54 + idle + 0.22*h*sin(p.x*20.0 - iTime*1.2) - 0.3*bounce + repel*0.5*mix(repelDirA,repelDirB,0.5);
+  float tC = lineThickness * (1.0 + 0.22*h);
+  float dC = abs(p.y - yC) * (2.0 / tC);
+  float sC = smoother(1.0 - clamp(dC,0.0,1.0),1.0,0.995);
+  vec3 baseC = mix(l3In, l3Out, sC);
+  vec3 accC = mix(baseC, accentHigh, 0.95);
+  vec3 cC = (1.0 - sC) * mix(baseC, accC, colorLevel * (0.35 + 0.65*h));
+
+  // Background influenced by lines + color level
+  float field = (1.0 - sA) + (1.0 - sB) + (1.0 - sC);
+  float energy = clamp(0.55*b + 0.35*m + 0.7*h + 0.55*kickEnergy, 0.0, 1.0);
+  float linInf = exp(-dA*1.2) + exp(-dB*1.2) + exp(-dC*1.2);
+  vec2 warpUV = p + 0.003 * linInf * (0.3 + 0.7*energy) * vec2(
+    vnoise(p*iResolution.xy*0.25 + iTime*0.35),
+    vnoise(p*iResolution.xy*0.21 - iTime*0.27)
+  );
+  vec3 bgWarp = mix(bgColorDown,bgColorUp, clamp(warpUV.y*2.0,0.0,1.0));
+
+  vec3 tintA = accentBass * (bgImpact * field * (0.08 + 0.70*b) * colorLevel);
+  vec3 tintB = accentMid  * (bgImpact * field * (0.10 + 0.80*m) * colorLevel);
+  vec3 tintC = accentHigh * (bgImpact * field * (0.12 + 0.90*h) * colorLevel);
+  vec3 bgMixed = mix(bg, bgWarp, 0.18*(0.4 + 0.6*linInf)) + tintA + tintB + tintC;
+
+  float atten = 1.0 - safeStrength * inSafe;
+  vec3 f = bgMixed + (cA + cB + cC) * atten;
+
+  // Dynamic film grain (multi-layer, animated)
+  float t = iTime*grainSpeed; 
+  float n1 = vnoise((p*iResolution.xy*0.65) + vec2(t*1.1, -t*0.8));
+  float n2 = vnoise((p*iResolution.xy*1.3)  + vec2(-t*0.6, t*1.4));
+  float n3 = vnoise((p*iResolution.xy*0.25) + vec2(t*0.3, t*0.25));
+  float weave = 0.5 + 0.5*sin(t*2.7 + p.y*900.0);
+  float n = (0.55*n1 + 0.35*n2 + 0.10*n3*weave);
+  float dyn = grainIntensity + 0.1*energy + 0.22*linInf;
+  vec3 grainHue = mix(vec3(1.0), accentMid, 0.35*colorLevel*highFreq);
+  f += (n-0.5) * grainHue * dyn * 0.28;
+
+  f = mix(f, vec3(1.0), 0.04 * kickEnergy * transitionFactor);
+  f = applyGrain(f, p);
+  gl_FragColor = vec4(f, 1.0);
 }
       `;
 
@@ -364,37 +869,53 @@ void main(){ vec2 p = vUv; vec3 bgCol = mix(bgColorDown, bgColorUp, clamp(p.y*2.
         highFreq: { value: 0 },
         isPlaying: { value: false },
         transitionFactor: { value: 0 },
-        lineStraightness: { value: 2.53 },
+        lineStraightness: { value: 2.8 },
         idleAnimation: { value: 0 },
-        idleWaveHeight: { value: 0.01 },
+        phase: { value: 0 },
+        // Stronger idle motion so lines move when not playing
+        idleWaveHeight: { value: 0.012 },
         kickEnergy: { value: 0 },
-        beatPhase: { value: 0 },
         bounceEffect: { value: 0 },
         baseSpeed: { value: 1.0 },
-        idleSpeed: { value: 0.1 },
-        bassReactivity: { value: 0.4 },
-        midReactivity: { value: 0.5 },
+        // Faster idle horizontal drift so still lines move a bit more
+        idleSpeed: { value: 0.45 },
+        bassReactivity: { value: 0.42 },
+        midReactivity: { value: 0.45 },
         highReactivity: { value: 0.4 },
-        kickReactivity: { value: 0.6 },
-        bounceIntensity: { value: 0.15 },
-        waveIntensity: { value: 0.08 },
-        waveComplexity: { value: 2.2 },
-        rippleIntensity: { value: 0.25 },
-        lineThickness: { value: 1.9 },
+        bounceIntensity: { value: 0.12 },
+        waveIntensity: { value: 0.06 },
+        waveComplexity: { value: 2.0 },
+        rippleIntensity: { value: 0.18 },
+        lineThickness: { value: 1.6 },
         enableGrain: { value: true },
-        grainIntensity: { value: 0.085 },
-        grainSpeed: { value: 2.0 },
+        grainIntensity: { value: 0.045 },
+        grainSpeed: { value: 2.2 },
         grainMean: { value: 0.0 },
         grainVariance: { value: 0.5 },
         grainBlendMode: { value: 0 },
-        bgColorDown: { value: new THREE.Vector3(40 / 255, 20 / 255, 10 / 255) },
-        bgColorUp: { value: new THREE.Vector3(20 / 255, 10 / 255, 5 / 255) },
-        color1In: { value: new THREE.Vector3(255 / 255, 200 / 255, 0 / 255) },
-        color1Out: { value: new THREE.Vector3(255 / 255, 100 / 255, 0 / 255) },
-        color2In: { value: new THREE.Vector3(255 / 255, 100 / 255, 100 / 255) },
-        color2Out: { value: new THREE.Vector3(200 / 255, 50 / 255, 50 / 255) },
-        color3In: { value: new THREE.Vector3(255 / 255, 150 / 255, 50 / 255) },
-        color3Out: { value: new THREE.Vector3(200 / 255, 100 / 255, 0 / 255) },
+        // background colors
+        bgColorDown: { value: new THREE.Vector3(11 / 255, 11 / 255, 16 / 255) },
+        bgColorUp: { value: new THREE.Vector3(14 / 255, 12 / 255, 20 / 255) },
+        // grayscale line base
+        l1In: { value: new THREE.Vector3(0.92, 0.92, 0.92) },
+        l1Out: { value: new THREE.Vector3(0.78, 0.78, 0.78) },
+        l2In: { value: new THREE.Vector3(0.8, 0.8, 0.8) },
+        l2Out: { value: new THREE.Vector3(0.66, 0.66, 0.66) },
+        l3In: { value: new THREE.Vector3(0.68, 0.68, 0.68) },
+        l3Out: { value: new THREE.Vector3(0.54, 0.54, 0.54) },
+        // accents (duotone leaning purple)
+        accentBass: { value: new THREE.Vector3(1.0, 0.83, 0.63) }, // warm apricot
+        accentMid: { value: new THREE.Vector3(0.83, 0.74, 1.0) }, // lavender
+        accentHigh: { value: new THREE.Vector3(0.74, 0.63, 1.0) }, // violet
+        colorLevel: { value: 0.55 }, // Accent mode default; buttons will toggle
+        // Readability
+        safeRectA: { value: new THREE.Vector4(0.5, 0.82, 0.36, 0.1) },
+        safeRectB: { value: new THREE.Vector4(0.5, 0.2, 0.34, 0.1) },
+        safeFeather: { value: 0.08 },
+        safeStrength: { value: 0.72 },
+        textRepel: { value: 0.016 },
+        // background impact
+        bgImpact: { value: 0.2 },
       };
 
       const material = new THREE.ShaderMaterial({
@@ -406,7 +927,6 @@ void main(){ vec2 p = vUv; vec3 bgCol = mix(bgColorDown, bgColorUp, clamp(p.y*2.
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
       scene.add(mesh);
 
-      // --- NOISE TEXTURE for CSS overlay (visual match) ---
       function makeNoiseTex() {
         const s = 256;
         const c = document.createElement("canvas");
@@ -427,25 +947,80 @@ void main(){ vec2 p = vUv; vec3 bgCol = mix(bgColorDown, bgColorUp, clamp(p.y*2.
       }
       makeNoiseTex();
 
-      // --- LOOP ---
+      // SAFE ZONE SYNC
+      const topBox = document.getElementById("titleTop");
+      const bottomBox = document.getElementById("titleBottom");
+      const rectToSafe = (r) => {
+        const w = innerWidth,
+          h = innerHeight;
+        const cx = (r.left + r.width / 2) / w;
+        const cy = 1.0 - (r.top + r.height / 2) / h;
+        const hx = (r.width / w) * 0.5;
+        const hy = (r.height / h) * 0.5;
+        return [cx, cy, hx, hy];
+      };
+      function updateSafeRects() {
+        const rt = topBox.getBoundingClientRect();
+        const rb = bottomBox.getBoundingClientRect();
+        const [cxA, cyA, hxA, hyA] = rectToSafe(rt);
+        const [cxB, cyB, hxB, hyB] = rectToSafe(rb);
+        uniforms.safeRectA.value.set(cxA, cyA, hxA, hyA);
+        uniforms.safeRectB.value.set(cxB, cyB, hxB, hyB);
+      }
+      updateSafeRects();
+      setTimeout(updateSafeRects, 150);
+
+      // CURSOR: state for beat-reactivity and filter refs
+      const cursorEl = document.getElementById("cursor");
+      // Cursor target (TX/TY) and actual (X/Y) for smooth follow
+      let cursorTX = innerWidth * 0.5,
+        cursorTY = innerHeight * 0.5,
+        cursorX = cursorTX,
+        cursorY = cursorTY;
+      // Track last pointer position and current magnetized button
+      let lastMouseX = cursorTX, lastMouseY = cursorTY;
+      let magnetBtn = null;
+      let cursorBeat = 0; // decaying pulse on kick
+      const turbEl = document.getElementById("cursorTurbulence");
+      const dispEl = document.getElementById("cursorDisplace");
+      function triggerCursorBeat(strength) {
+        // subtler pop; combine with existing pulse
+        cursorBeat = Math.min(1, Math.max(cursorBeat, 0.25 + strength * 0.5));
+      }
+
+      // LOOP
       let last = performance.now(),
         frames = 0,
         acc = 0;
       const fpsEl = document.getElementById("fps");
       let transition = 0;
+      // Integrate a global phase so horizontal drift continues smoothly
+      let phase = 0;
       function animate(now) {
         requestAnimationFrame(animate);
         const dt = (now - last) / 1000;
         last = now;
-        uniforms.iTime.value += 0.01;
-        uniforms.idleAnimation.value += 0.01;
+        // Advance time with real dt; scale to preserve prior pacing (~0.6x/sec)
+        const timeScale = 0.6;
+        uniforms.iTime.value += dt * timeScale;
+        uniforms.idleAnimation.value += dt * timeScale;
         updateFrequencies();
-        // smooth transition
         const rate = 0.03;
         if (isPlaying && transition < 1.0) {
           transition = Math.min(transition + rate, 1.0);
         } else if (!isPlaying && transition > 0.0) {
           transition = Math.max(transition - rate, 0.0);
+          // During the settle window, actively damp any residual analysis
+          // so we don't get a brief wiggle before becoming still.
+          const k = Math.max(0, 1 - 6 * dt); // ~fast decay over ~250ms
+          lowFreq *= k;
+          midFreq *= k;
+          highFreq *= k;
+          kickEnergy *= k;
+          uniforms.lowFreq.value = lowFreq;
+          uniforms.midFreq.value = midFreq;
+          uniforms.highFreq.value = highFreq;
+          uniforms.kickEnergy.value = kickEnergy;
           if (transition === 0) {
             lowFreq = midFreq = highFreq = kickEnergy = 0;
             uniforms.lowFreq.value =
@@ -456,10 +1031,75 @@ void main(){ vec2 p = vUv; vec3 bgCol = mix(bgColorDown, bgColorUp, clamp(p.y*2.
             uniforms.bounceEffect.value = 0;
           }
         }
+        // Smooth speed blend across states, then integrate phase
+        const curSpeed =
+          uniforms.idleSpeed.value * (1 - transition) +
+          uniforms.baseSpeed.value * transition;
+        phase += curSpeed * (dt * timeScale);
+        uniforms.phase.value = phase;
         uniforms.transitionFactor.value = transition;
         uniforms.isPlaying.value = isPlaying;
-        // mouse-driven
         renderer.render(scene, camera);
+
+        // Cursor beat reaction and transform update
+        // Faster decay and smaller pop
+        cursorBeat = Math.max(0, cursorBeat - dt * 4.8);
+        const beatScale = 1 + 0.08 * (1 - Math.pow(1 - cursorBeat, 2));
+        // Smooth follow to target; stronger when snapping to buttons
+        const snapActive = cursorEl.classList.contains("btn-hover");
+        // If currently magneted to a button, continuously match its live size
+        if (snapActive && magnetBtn && document.body.contains(magnetBtn)) {
+          const br = magnetBtn.getBoundingClientRect();
+          const cx = br.left + br.width / 2;
+          const cy = br.top + br.height / 2;
+          const dx = lastMouseX - cx;
+          const dy = lastMouseY - cy;
+          const k = 0.12;
+          const maxOff = 8;
+          const offX = Math.max(-maxOff, Math.min(maxOff, dx * k));
+          const offY = Math.max(-maxOff, Math.min(maxOff, dy * k));
+          // Move inner pill too (back to original behavior)
+          cursorTX = cx + offX;
+          cursorTY = cy + offY;
+          cursorEl.style.width = `${Math.max(1, br.width)}px`;
+          cursorEl.style.height = `${Math.max(1, br.height)}px`;
+          // Ring follows inner pill directly (no extra offset)
+          cursorEl.style.setProperty('--ring-ox', '0px');
+          cursorEl.style.setProperty('--ring-oy', '0px');
+          // Also nudge the button itself slightly toward the pointer
+          magnetBtn.style.setProperty('--magnet-x', `${offX}px`);
+          magnetBtn.style.setProperty('--magnet-y', `${offY}px`);
+        } else {
+          // Not magneted: ensure ring recenters
+          cursorEl.style.setProperty('--ring-ox', '0px');
+          cursorEl.style.setProperty('--ring-oy', '0px');
+          // Reset any previous magnetized button offset
+          if (magnetBtn) {
+            try {
+              magnetBtn.style.setProperty('--magnet-x', '0px');
+              magnetBtn.style.setProperty('--magnet-y', '0px');
+            } catch {}
+          }
+        }
+        const follow = snapActive ? 18 : 12; // per-second smoothing
+        const a = 1 - Math.exp(-follow * dt);
+        cursorX += (cursorTX - cursorX) * a;
+        cursorY += (cursorTY - cursorY) * a;
+        // While magneted to a button, keep exact size (no extra scale)
+        const finalScaleNum = snapActive
+          ? 1.0
+          : (cursorEl.classList.contains("snap") ? 1.06 : 1.0) * beatScale;
+        const finalScale = finalScaleNum.toFixed(3);
+        cursorEl.style.transform = `translate(${cursorX}px,${cursorY}px) translate(-50%, -50%) scale(${finalScale})`;
+        cursorEl.classList.toggle("beat", cursorBeat > 0.03);
+        if (dispEl && turbEl) {
+          const disp = cursorBeat > 0 ? 4 + 14 * cursorBeat : 0;
+          dispEl.setAttribute("scale", disp.toFixed(2));
+          // Animate turbulence for lively spikes
+          const baseF = 0.55 + 0.55 * cursorBeat;
+          turbEl.setAttribute("baseFrequency", baseF.toFixed(3));
+          turbEl.setAttribute("seed", String(((now * 0.08) | 0) % 10000));
+        }
         acc += dt;
         frames++;
         if (acc >= 0.25) {
@@ -470,34 +1110,311 @@ void main(){ vec2 p = vUv; vec3 bgCol = mix(bgColorDown, bgColorUp, clamp(p.y*2.
       }
       requestAnimationFrame(animate);
 
-      // --- EVENTS ---
+      // EVENTS
       addEventListener("resize", () => {
         renderer.setSize(innerWidth, innerHeight);
         uniforms.iResolution.value.set(innerWidth, innerHeight);
+        updateSafeRects();
       });
       addEventListener("mousemove", (e) => {
         uniforms.iMouse.value.set(e.clientX, e.clientY);
-        const cursor = document.getElementById("cursor");
-        cursor.style.transform = `translate(${e.clientX}px,${e.clientY}px)`;
-        const t = e.target.closest("button,.btn");
-        if (t) cursor.classList.add("snap");
-        else cursor.classList.remove("snap");
+        // Default target is the pointer position
+        cursorTX = e.clientX;
+        cursorTY = e.clientY;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+        // Robust button hit-test: consider any element under pointer
+        let btnEl = null;
+        if (document.elementsFromPoint) {
+          const stack = document.elementsFromPoint(e.clientX, e.clientY);
+          for (const el of stack) {
+            const b = el.closest && el.closest("button,.btn");
+            if (b) { btnEl = b; break; }
+          }
+        }
+        if (!btnEl) btnEl = e.target.closest("button,.btn");
+        const textEls = [
+          document.getElementById("quoteTop"),
+          document.getElementById("quoteBottom"),
+          document.getElementById("caption"),
+          document.getElementById("attrib"),
+        ];
+        let overText = false;
+        for (const el of textEls) {
+          const r = el.getBoundingClientRect();
+          if (
+            e.clientX >= r.left &&
+            e.clientX <= r.right &&
+            e.clientY >= r.top &&
+            e.clientY <= r.bottom
+          ) {
+            overText = true;
+            break;
+          }
+        }
+        cursorEl.classList.toggle("btn-hover", !!btnEl);
+        cursorEl.classList.toggle("text-hover", !btnEl && overText);
+        cursorEl.classList.toggle("snap", !!btnEl);
+        // Magnetic snap: retarget to button center while hovering
+        if (btnEl) {
+          const br = btnEl.getBoundingClientRect();
+          const cx = br.left + br.width / 2;
+          const cy = br.top + br.height / 2;
+          // Slight interactive offset based on pointer delta from center
+          const dx = e.clientX - cx;
+          const dy = e.clientY - cy;
+          const k = 0.12; // how much of the delta we apply
+          const maxOff = 8; // clamp offset in px
+          const offX = Math.max(-maxOff, Math.min(maxOff, dx * k));
+          const offY = Math.max(-maxOff, Math.min(maxOff, dy * k));
+          // Move inner pill too (back to original behavior)
+          cursorTX = cx + offX;
+          cursorTY = cy + offY;
+          cursorEl.style.setProperty('--ring-ox', '0px');
+          cursorEl.style.setProperty('--ring-oy', '0px');
+          // Make inner pill match the button's size exactly (no extra padding)
+          cursorEl.style.width = `${Math.max(1, br.width)}px`;
+          cursorEl.style.height = `${Math.max(1, br.height)}px`;
+          // Set magnet offsets on the button itself
+          if (magnetBtn && magnetBtn !== btnEl) {
+            try {
+              magnetBtn.style.setProperty('--magnet-x', '0px');
+              magnetBtn.style.setProperty('--magnet-y', '0px');
+            } catch {}
+          }
+          btnEl.style.setProperty('--magnet-x', `${offX}px`);
+          btnEl.style.setProperty('--magnet-y', `${offY}px`);
+          magnetBtn = btnEl;
+        } else {
+          // Reset to default sizes controlled by CSS for non-buttons
+          cursorEl.style.width = "";
+          cursorEl.style.height = "";
+          cursorEl.style.setProperty('--ring-ox', '0px');
+          cursorEl.style.setProperty('--ring-oy', '0px');
+          if (magnetBtn) {
+            try {
+              magnetBtn.style.setProperty('--magnet-x', '0px');
+              magnetBtn.style.setProperty('--magnet-y', '0px');
+            } catch {}
+          }
+          magnetBtn = null;
+        }
       });
 
-      const btn = document.getElementById("playBtn");
-      btn.onclick = async () => {
+      const playBtn = document.getElementById("playBtn");
+      const playLabel = playBtn.querySelector(".btn-label");
+      playBtn.onclick = async () => {
         setupAudio();
         if (audioCtx.state === "suspended") await audioCtx.resume();
         if (!isPlaying) {
-          audioEl.play();
+          // If metadata is already available, seek before starting to avoid a blip at 0s
+          if (audioEl.readyState >= 1 && !audioEl._startApplied) {
+            try {
+              audioEl.currentTime = START_AT_SECONDS;
+              audioEl._startApplied = true;
+            } catch {}
+          }
+          // start silent then fade in
+          try {
+            if (gainNode) gainNode.gain.value = 0;
+          } catch {}
+          await audioEl.play();
           isPlaying = true;
-          btn.textContent = "Stop";
+          if (playLabel) playLabel.textContent = "Stop";
+          fadeInQuick();
         } else {
-          audioEl.pause();
-          isPlaying = false;
-          btn.textContent = "Play";
+          // Fade out quickly, then pause
+          fadeOutQuick();
+          setTimeout(() => {
+            audioEl.pause();
+            isPlaying = false;
+            if (playLabel) playLabel.textContent = "Play";
+          }, 260);
         }
       };
+
+      // Color mode toggler
+      const colorBtn = document.getElementById("colorBtn");
+      const colorLabel = colorBtn.querySelector(".btn-label");
+      const modes = [
+        { label: "Minimal", level: 0.15 },
+        { label: "Accent", level: 0.55 },
+        { label: "Vivid", level: 0.95 },
+      ];
+      let modeIdx = 1;
+      const setMode = (i) => {
+        modeIdx = i % modes.length;
+        uniforms.colorLevel.value = modes[modeIdx].level;
+        if (colorLabel)
+          colorLabel.textContent = `Color: ${modes[modeIdx].label}`;
+      };
+      colorBtn.onclick = () => setMode(modeIdx + 1);
+      addEventListener("keydown", (e) => {
+        if (e.key.toLowerCase() === "c") setMode(modeIdx + 1);
+      });
+
+      // Randomize color palette
+      const randBtn = document.getElementById("randBtn");
+      function hslToRgb(h, s, l) {
+        h = ((h % 360) + 360) % 360;
+        s = Math.min(Math.max(s, 0), 1);
+        l = Math.min(Math.max(l, 0), 1);
+        const c = (1 - Math.abs(2 * l - 1)) * s;
+        const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+        const m = l - c / 2;
+        let r = 0,
+          g = 0,
+          b = 0;
+        if (h < 60) {
+          r = c;
+          g = x;
+          b = 0;
+        } else if (h < 120) {
+          r = x;
+          g = c;
+          b = 0;
+        } else if (h < 180) {
+          r = 0;
+          g = c;
+          b = x;
+        } else if (h < 240) {
+          r = 0;
+          g = x;
+          b = c;
+        } else if (h < 300) {
+          r = x;
+          g = 0;
+          b = c;
+        } else {
+          r = c;
+          g = 0;
+          b = x;
+        }
+        return [r + m, g + m, b + m];
+      }
+      function rand(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+      function pickPalette() {
+        // Base hue can be anywhere; keep saturation/lightness restrained for minimalism
+        const baseH = rand(0, 360);
+        const satAcc = rand(0.25, 0.5);
+        const lightAcc = rand(0.6, 0.78);
+        // Analogous triad around base
+        const hMid = baseH;
+        const hHigh = baseH + rand(8, 24);
+        const hBass = baseH - rand(18, 36); // warmer/contrast
+        const [r1, g1, b1] = hslToRgb(hBass, satAcc * 0.9, lightAcc * 0.9);
+        const [r2, g2, b2] = hslToRgb(hMid, satAcc, lightAcc);
+        const [r3, g3, b3] = hslToRgb(hHigh, satAcc * 0.95, lightAcc * 0.92);
+        // Background: very dark version of base hue
+        const [rb1, gb1, bb1] = hslToRgb(baseH - 6, satAcc * 0.25, 0.08);
+        const [rb2, gb2, bb2] = hslToRgb(baseH + 6, satAcc * 0.3, 0.11);
+        return {
+          bass: [r1, g1, b1],
+          mid: [r2, g2, b2],
+          high: [r3, g3, b3],
+          bgDown: [rb1, gb1, bb1],
+          bgUp: [rb2, gb2, bb2],
+        };
+      }
+      function applyPalette(p) {
+        uniforms.accentBass.value.set(p.bass[0], p.bass[1], p.bass[2]);
+        uniforms.accentMid.value.set(p.mid[0], p.mid[1], p.mid[2]);
+        uniforms.accentHigh.value.set(p.high[0], p.high[1], p.high[2]);
+        uniforms.bgColorDown.value.set(p.bgDown[0], p.bgDown[1], p.bgDown[2]);
+        uniforms.bgColorUp.value.set(p.bgUp[0], p.bgUp[1], p.bgUp[2]);
+      }
+      randBtn.onclick = () => {
+        const p = pickPalette();
+        applyPalette(p);
+      };
+      addEventListener("keydown", (e) => {
+        if (e.key.toLowerCase() === "r") {
+          const p = pickPalette();
+          applyPalette(p);
+        }
+      });
+
+      // Remove complex ripple; clicks now feel physical via CSS :active shrink
+
+      // Hamburger toggle for color settings + auto-hide
+      (function colorMenuToggle() {
+        const menuWrap = document.getElementById("colorMenu");
+        const menuBtn = document.getElementById("menuBtn");
+        const colorBtnEl = document.getElementById("colorBtn");
+        const randBtnEl = document.getElementById("randBtn");
+        const items = document.getElementById("menuItems");
+        const widthWrap = document.getElementById("menuWidth");
+
+        if (
+          !menuWrap ||
+          !menuBtn ||
+          !colorBtnEl ||
+          !randBtnEl ||
+          !items ||
+          !widthWrap
+        )
+          return;
+
+        let hideTimer = null;
+        const AUTO_HIDE_MS = 20000; // at least 20s
+        let isOpen = false; // target state
+
+        const clearHideTimer = () => {
+          if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+          }
+        };
+
+        const scheduleHide = (delay = AUTO_HIDE_MS) => {
+          clearHideTimer();
+          hideTimer = setTimeout(() => setOpen(false), delay);
+        };
+
+        function setOpen(open) {
+          isOpen = open;
+          clearHideTimer();
+          if (open) {
+            menuWrap.classList.add("anim-opening");
+            menuWrap.classList.remove("anim-closing");
+            menuWrap.classList.add("open");
+            menuBtn.setAttribute("aria-expanded", "true");
+            menuBtn.setAttribute("aria-label", "Close color settings");
+            menuBtn.setAttribute("title", "Close");
+            // remove directional class after a bit to avoid accumulating
+            setTimeout(() => menuWrap.classList.remove("anim-opening"), 400);
+            scheduleHide();
+          } else {
+            menuWrap.classList.add("anim-closing");
+            menuWrap.classList.remove("anim-opening");
+            menuWrap.classList.remove("open");
+            menuBtn.setAttribute("aria-expanded", "false");
+            menuBtn.setAttribute("aria-label", "Open color settings");
+            menuBtn.setAttribute("title", "Color settings");
+            setTimeout(() => menuWrap.classList.remove("anim-closing"), 400);
+          }
+        }
+
+        menuBtn.addEventListener("click", () => setOpen(!isOpen));
+
+        // Interacting with color/random buttons keeps menu open, then hides after long delay
+        [colorBtnEl, randBtnEl].forEach((b) =>
+          b.addEventListener("click", () => scheduleHide(AUTO_HIDE_MS))
+        );
+
+        // If mouse leaves the area, still allow auto-hide timer to do its work
+        menuWrap.addEventListener("mouseenter", () => clearHideTimer());
+        menuWrap.addEventListener("mouseleave", () => {
+          if (isOpen) scheduleHide(1200);
+        });
+
+        // ESC closes
+        addEventListener("keydown", (e) => {
+          if (e.key === "Escape") setOpen(false);
+        });
+      })();
     </script>
   </body>
 </html>
