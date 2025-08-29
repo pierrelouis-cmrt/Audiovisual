@@ -141,6 +141,26 @@
         opacity: 0.96;
         margin-top: 0.5rem;
       }
+      /* Make attribution links inherit color and stay underlined */
+      .attributions a,
+      .attributions a:link,
+      .attributions a:visited,
+      .attributions a:hover,
+      .attributions a:active,
+      .attributions a:focus {
+        color: inherit;
+        text-decoration: underline;
+      }
+      /* Ensure the link is interactive despite overlay's pointer-events */
+      .attributions a {
+        pointer-events: auto;
+        cursor: none !important;
+      }
+      /* Hover/Focus effect: gently embolden (no cursor change) */
+      .attributions a:hover,
+      .attributions a:focus {
+        font-weight: 600;
+      }
 
       .controls {
         position: fixed;
@@ -158,7 +178,7 @@
         --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
         /* Animation tuning */
         --radius-start: 28px; /* pill while sliding up */
-        --radius-open: 18px;  /* panel when open */
+        --radius-open: 18px; /* panel when open */
         --items-duration: 260ms;
         --width-duration: 260ms;
         --child-stagger-1: 120ms; /* first child delay on open */
@@ -237,12 +257,22 @@
         will-change: transform;
         transition: transform var(--width-duration) var(--ease-out);
       }
-      .color-menu.open .menu-width { transform: scaleX(1); }
+      .color-menu.open .menu-width {
+        transform: scaleX(1);
+      }
       /* Direction-aware delays so open = slide then widen, close = widen then slide */
-      .color-menu.anim-opening .menu-items { transition-delay: 0ms; }
-      .color-menu.anim-opening .menu-width { transition-delay: 120ms; }
-      .color-menu.anim-closing .menu-width { transition-delay: 0ms; }
-      .color-menu.anim-closing .menu-items { transition-delay: 120ms; }
+      .color-menu.anim-opening .menu-items {
+        transition-delay: 0ms;
+      }
+      .color-menu.anim-opening .menu-width {
+        transition-delay: 120ms;
+      }
+      .color-menu.anim-closing .menu-width {
+        transition-delay: 0ms;
+      }
+      .color-menu.anim-closing .menu-items {
+        transition-delay: 120ms;
+      }
 
       /* Staggered button reveal inside the menu (subtle slide + fade) */
       .menu-width > .btn {
@@ -250,8 +280,7 @@
         transform: translateY(8px) scale(0.985);
         will-change: transform, opacity, background-color;
         transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
-          opacity 200ms var(--ease-out),
-          background-color 200ms var(--ease-out);
+          opacity 200ms var(--ease-out), background-color 200ms var(--ease-out);
       }
       .color-menu.open .menu-width > .btn {
         opacity: 1;
@@ -271,7 +300,9 @@
       .color-menu.anim-opening .menu-width > .btn:nth-child(2) {
         transition-delay: var(--child-stagger-2);
       }
-      .color-menu.anim-closing .menu-width > .btn { transition-delay: 0ms; }
+      .color-menu.anim-closing .menu-width > .btn {
+        transition-delay: 0ms;
+      }
 
       /* Labels: always visible, no animation */
       .menu-width > .btn .btn-label {
@@ -308,8 +339,15 @@
         position: relative; /* for ripple positioning */
         overflow: hidden; /* contain ripple inside button */
       }
-      .btn:hover { opacity: 1; --hover-ty: -1px; }
-      .btn:active { /* Simple physical click: tiny shrink */ --press-scale: 0.96; --hover-ty: 0px; }
+      .btn:hover {
+        opacity: 1;
+        --hover-ty: -1px;
+      }
+      .btn:active {
+        /* Simple physical click: tiny shrink */
+        --press-scale: 0.96;
+        --hover-ty: 0px;
+      }
 
       .fps {
         position: fixed;
@@ -464,7 +502,8 @@
       .cursor.text-hover::after {
         inset: -10px;
         border-radius: 999px;
-        transform: translate(var(--ring-ox, 0px), var(--ring-oy, 0px)) scale(1.05);
+        transform: translate(var(--ring-ox, 0px), var(--ring-oy, 0px))
+          scale(1.05);
       }
 
       /* Beat reaction: brighten and distort the ring */
@@ -488,8 +527,14 @@
 
       /* Touch/coarse pointers: never show custom cursor */
       @media (hover: none), (pointer: coarse) {
-        .cursor { display: none !important; }
-        html, body, .btn { cursor: auto !important; }
+        .cursor {
+          display: none !important;
+        }
+        html,
+        body,
+        .btn {
+          cursor: auto !important;
+        }
       }
     </style>
   </head>
@@ -505,7 +550,14 @@
       <div class="overlay-slot bottom" id="titleBottom">
         <div class="quote" id="quoteBottom">Shapes Sound</div>
         <div class="attributions" id="attrib">
-          Song: Egzod, Maestro Chives, Neoni - Royalty
+          Song: Egzod, Maestro Chives, Neoni - Royalty<br />
+          Design inspired by
+          <a
+            href="https://codepen.io/filipz/pen/dPygJGM"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Filip Zrnzevic</a
+          >'s work.
         </div>
       </div>
     </div>
@@ -560,12 +612,34 @@
     <div class="cursor" id="cursor"></div>
 
     <!-- SVG filter for spiky/wavy ring distortion on beat -->
-    <svg width="0" height="0" style="position:absolute">
+    <svg width="0" height="0" style="position: absolute">
       <defs>
-        <filter id="cursorSpiky" x="-20%" y="-20%" width="140%" height="140%" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+        <filter
+          id="cursorSpiky"
+          x="-20%"
+          y="-20%"
+          width="140%"
+          height="140%"
+          filterUnits="objectBoundingBox"
+          color-interpolation-filters="sRGB"
+        >
           <!-- Turbulence driving displacement; parameters animated via JS -->
-          <feTurbulence id="cursorTurbulence" type="fractalNoise" baseFrequency="1.0" numOctaves="1" seed="2" stitchTiles="stitch" />
-          <feDisplacementMap id="cursorDisplace" in="SourceGraphic" in2="cursorTurbulence" scale="0" xChannelSelector="R" yChannelSelector="G" />
+          <feTurbulence
+            id="cursorTurbulence"
+            type="fractalNoise"
+            baseFrequency="1.0"
+            numOctaves="1"
+            seed="2"
+            stitchTiles="stitch"
+          />
+          <feDisplacementMap
+            id="cursorDisplace"
+            in="SourceGraphic"
+            in2="cursorTurbulence"
+            scale="0"
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
         </filter>
       </defs>
     </svg>
@@ -575,10 +649,12 @@
 
       // Hide custom cursor on touch/coarse-pointer devices
       try {
-        const isNoHover = window.matchMedia('(hover: none)').matches || window.matchMedia('(pointer: coarse)').matches;
+        const isNoHover =
+          window.matchMedia("(hover: none)").matches ||
+          window.matchMedia("(pointer: coarse)").matches;
         if (isNoHover) {
-          const c = document.getElementById('cursor');
-          if (c) c.style.display = 'none';
+          const c = document.getElementById("cursor");
+          if (c) c.style.display = "none";
         }
       } catch {}
 
@@ -716,7 +792,9 @@
           kickImpact = 10;
           lastKickTime = now;
           // Pulse the cursor on beat
-          try { triggerCursorBeat(kickEnergy); } catch {}
+          try {
+            triggerCursorBeat(kickEnergy);
+          } catch {}
         } else {
           kickEnergy *= kickDecay;
           if (kickEnergy < 0.05) kickDetected = false;
@@ -978,7 +1056,8 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         cursorX = cursorTX,
         cursorY = cursorTY;
       // Track last pointer position and current magnetized button
-      let lastMouseX = cursorTX, lastMouseY = cursorTY;
+      let lastMouseX = cursorTX,
+        lastMouseY = cursorTY;
       let magnetBtn = null;
       let cursorBeat = 0; // decaying pulse on kick
       const turbEl = document.getElementById("cursorTurbulence");
@@ -1064,20 +1143,20 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
           cursorEl.style.width = `${Math.max(1, br.width)}px`;
           cursorEl.style.height = `${Math.max(1, br.height)}px`;
           // Ring follows inner pill directly (no extra offset)
-          cursorEl.style.setProperty('--ring-ox', '0px');
-          cursorEl.style.setProperty('--ring-oy', '0px');
+          cursorEl.style.setProperty("--ring-ox", "0px");
+          cursorEl.style.setProperty("--ring-oy", "0px");
           // Also nudge the button itself slightly toward the pointer
-          magnetBtn.style.setProperty('--magnet-x', `${offX}px`);
-          magnetBtn.style.setProperty('--magnet-y', `${offY}px`);
+          magnetBtn.style.setProperty("--magnet-x", `${offX}px`);
+          magnetBtn.style.setProperty("--magnet-y", `${offY}px`);
         } else {
           // Not magneted: ensure ring recenters
-          cursorEl.style.setProperty('--ring-ox', '0px');
-          cursorEl.style.setProperty('--ring-oy', '0px');
+          cursorEl.style.setProperty("--ring-ox", "0px");
+          cursorEl.style.setProperty("--ring-oy", "0px");
           // Reset any previous magnetized button offset
           if (magnetBtn) {
             try {
-              magnetBtn.style.setProperty('--magnet-x', '0px');
-              magnetBtn.style.setProperty('--magnet-y', '0px');
+              magnetBtn.style.setProperty("--magnet-x", "0px");
+              magnetBtn.style.setProperty("--magnet-y", "0px");
             } catch {}
           }
         }
@@ -1129,31 +1208,29 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
           const stack = document.elementsFromPoint(e.clientX, e.clientY);
           for (const el of stack) {
             const b = el.closest && el.closest("button,.btn");
-            if (b) { btnEl = b; break; }
+            if (b) {
+              btnEl = b;
+              break;
+            }
           }
         }
         if (!btnEl) btnEl = e.target.closest("button,.btn");
-        const textEls = [
-          document.getElementById("quoteTop"),
-          document.getElementById("quoteBottom"),
-          document.getElementById("caption"),
-          document.getElementById("attrib"),
-        ];
-        let overText = false;
-        for (const el of textEls) {
-          const r = el.getBoundingClientRect();
-          if (
-            e.clientX >= r.left &&
-            e.clientX <= r.right &&
-            e.clientY >= r.top &&
-            e.clientY <= r.bottom
-          ) {
-            overText = true;
-            break;
+        // Link hit-test: only enlarge cursor over anchors
+        let linkEl = null;
+        if (document.elementsFromPoint) {
+          const stack = document.elementsFromPoint(e.clientX, e.clientY);
+          for (const el of stack) {
+            const a = el.closest && el.closest("a");
+            if (a) {
+              linkEl = a;
+              break;
+            }
           }
         }
+        if (!linkEl) linkEl = e.target.closest("a");
+
         cursorEl.classList.toggle("btn-hover", !!btnEl);
-        cursorEl.classList.toggle("text-hover", !btnEl && overText);
+        cursorEl.classList.toggle("text-hover", !btnEl && !!linkEl);
         cursorEl.classList.toggle("snap", !!btnEl);
         // Magnetic snap: retarget to button center while hovering
         if (btnEl) {
@@ -1170,31 +1247,31 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
           // Move inner pill too (back to original behavior)
           cursorTX = cx + offX;
           cursorTY = cy + offY;
-          cursorEl.style.setProperty('--ring-ox', '0px');
-          cursorEl.style.setProperty('--ring-oy', '0px');
+          cursorEl.style.setProperty("--ring-ox", "0px");
+          cursorEl.style.setProperty("--ring-oy", "0px");
           // Make inner pill match the button's size exactly (no extra padding)
           cursorEl.style.width = `${Math.max(1, br.width)}px`;
           cursorEl.style.height = `${Math.max(1, br.height)}px`;
           // Set magnet offsets on the button itself
           if (magnetBtn && magnetBtn !== btnEl) {
             try {
-              magnetBtn.style.setProperty('--magnet-x', '0px');
-              magnetBtn.style.setProperty('--magnet-y', '0px');
+              magnetBtn.style.setProperty("--magnet-x", "0px");
+              magnetBtn.style.setProperty("--magnet-y", "0px");
             } catch {}
           }
-          btnEl.style.setProperty('--magnet-x', `${offX}px`);
-          btnEl.style.setProperty('--magnet-y', `${offY}px`);
+          btnEl.style.setProperty("--magnet-x", `${offX}px`);
+          btnEl.style.setProperty("--magnet-y", `${offY}px`);
           magnetBtn = btnEl;
         } else {
           // Reset to default sizes controlled by CSS for non-buttons
           cursorEl.style.width = "";
           cursorEl.style.height = "";
-          cursorEl.style.setProperty('--ring-ox', '0px');
-          cursorEl.style.setProperty('--ring-oy', '0px');
+          cursorEl.style.setProperty("--ring-ox", "0px");
+          cursorEl.style.setProperty("--ring-oy", "0px");
           if (magnetBtn) {
             try {
-              magnetBtn.style.setProperty('--magnet-x', '0px');
-              magnetBtn.style.setProperty('--magnet-y', '0px');
+              magnetBtn.style.setProperty("--magnet-x", "0px");
+              magnetBtn.style.setProperty("--magnet-y", "0px");
             } catch {}
           }
           magnetBtn = null;
