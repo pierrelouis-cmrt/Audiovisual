@@ -1121,9 +1121,10 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         renderer.render(scene, camera);
 
         // Cursor beat reaction and transform update
-        // Faster decay and smaller pop
-        cursorBeat = Math.max(0, cursorBeat - dt * 4.8);
-        const beatScale = 1 + 0.08 * (1 - Math.pow(1 - cursorBeat, 2));
+        // Decay the pulse and scale cursor on beat (slower decay, bigger pop)
+        cursorBeat = Math.max(0, cursorBeat - dt * 3.2);
+        // Stronger, clearer pop on each beat then ease back
+        const beatScale = 1 + 0.35 * (1 - Math.pow(1 - cursorBeat, 2));
         // Smooth follow to target; stronger when snapping to buttons
         const snapActive = cursorEl.classList.contains("btn-hover");
         // If currently magneted to a button, continuously match its live size
@@ -1164,10 +1165,9 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         const a = 1 - Math.exp(-follow * dt);
         cursorX += (cursorTX - cursorX) * a;
         cursorY += (cursorTY - cursorY) * a;
-        // While magneted to a button, keep exact size (no extra scale)
-        const finalScaleNum = snapActive
-          ? 1.0
-          : (cursorEl.classList.contains("snap") ? 1.06 : 1.0) * beatScale;
+        // Apply beat-driven growth and keep small baseline bump on buttons
+        const baseHoverScale = cursorEl.classList.contains("snap") ? 1.06 : 1.0;
+        const finalScaleNum = baseHoverScale * beatScale;
         const finalScale = finalScaleNum.toFixed(3);
         cursorEl.style.transform = `translate(${cursorX}px,${cursorY}px) translate(-50%, -50%) scale(${finalScale})`;
         cursorEl.classList.toggle("beat", cursorBeat > 0.03);
