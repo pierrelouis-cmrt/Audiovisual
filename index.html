@@ -1219,9 +1219,14 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         const a = 1 - Math.exp(-follow * dt);
         cursorX += (cursorTX - cursorX) * a;
         cursorY += (cursorTY - cursorY) * a;
-        // Apply beat-driven growth and keep small baseline bump on buttons
+        // Apply beat-driven growth only in default state.
+        // When snapped to a button or hovering a link, keep size steady
+        // (ring will still get noisy via .beat::after filter).
         const baseHoverScale = cursorEl.classList.contains("snap") ? 1.06 : 1.0;
-        const finalScaleNum = baseHoverScale * beatScale;
+        const nonDefaultState =
+          snapActive || cursorEl.classList.contains("text-hover");
+        const effectiveBeatScale = nonDefaultState ? 1.0 : beatScale;
+        const finalScaleNum = baseHoverScale * effectiveBeatScale;
         const finalScale = finalScaleNum.toFixed(3);
         cursorEl.style.transform = `translate(${cursorX}px,${cursorY}px) translate(-50%, -50%) scale(${finalScale})`;
         cursorEl.classList.toggle("beat", cursorBeat > 0.03);
