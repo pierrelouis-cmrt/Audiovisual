@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Where Silence Shapes Sound — audiovisual piece</title>
-    <!-- DO NOT TOUCH FONTS (kept exactly) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -12,22 +11,16 @@
       rel="stylesheet"
     />
     <style>
-      /* ===============================================
-         COLOR MODES + PURPLE ACCENT + DYNAMIC GRAIN + RAND COLOR
-         (Minimal base; strong readability preserved)
-      ================================================ */
-
       :root {
-        --bg-0: #0b0b10; /* slightly inky */
-        --bg-1: #0e0c14; /* plum hint */
+        --bg-0: #0b0b10;
+        --bg-1: #0e0c14;
         --text-strong: #ffffff;
         --text-muted: #c9ced3;
         --glass-bg: rgba(18, 20, 22, 0.5);
-        /* Darker, always-on button background */
         --btn-bg: rgba(10, 12, 14, 0.72);
         --glass-brd: rgba(255, 255, 255, 0.12);
-        --frost-pad: 14px; /* halo padding around menu buttons */
-        --frost-radius: 22px; /* halo corner rounding */
+        --frost-pad: 14px;
+        --frost-radius: 22px;
       }
 
       html,
@@ -145,7 +138,6 @@
         opacity: 0.96;
         margin-top: 0.5rem;
       }
-      /* Make attribution links inherit color and stay underlined */
       .attributions a,
       .attributions a:link,
       .attributions a:visited,
@@ -155,12 +147,10 @@
         color: inherit;
         text-decoration: underline;
       }
-      /* Ensure the link is interactive despite overlay's pointer-events */
       .attributions a {
         pointer-events: auto;
         cursor: none !important;
       }
-      /* Hover/Focus effect: gently embolden (no cursor change) */
       .attributions a:hover,
       .attributions a:focus {
         font-weight: 600;
@@ -176,23 +166,20 @@
         align-items: center;
         pointer-events: auto;
       }
-      /* Internal halo container that the buttons sit in */
       .menu-panel {
         position: relative;
         display: inline-block;
         padding: var(--frost-pad);
         border-radius: var(--frost-radius);
-        z-index: 0; /* establish stacking so ::before can sit under */
-        /* Ensure frosted glass blur applies to the backdrop (including Safari) */
+        z-index: 0;
         backdrop-filter: blur(12px) saturate(120%);
         -webkit-backdrop-filter: blur(12px) saturate(120%);
-        /* Create its own stacking context to avoid bleed-through issues */
         isolation: isolate;
       }
       .menu-panel::before {
         content: "";
         position: absolute;
-        inset: 0; /* halo flush with panel padding */
+        inset: 0;
         border-radius: inherit;
         pointer-events: none;
         background-color: rgba(10, 12, 14, 0.5);
@@ -221,18 +208,15 @@
           );
         }
       }
-      /* Color menu wrapper + hamburger toggle */
       .color-menu {
         --menu-icon-size: 44px;
         --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-        /* Animation tuning */
-        --radius-start: 28px; /* pill while sliding up */
-        --radius-open: 18px; /* panel when open */
+        --radius-start: 28px;
+        --radius-open: 18px;
         --items-duration: 260ms;
         --width-duration: 260ms;
-        --child-stagger-1: 120ms; /* first child delay on open */
-        --child-stagger-2: 180ms; /* second child delay on open */
-        /* Label reveal origin (can be tuned per taste) */
+        --child-stagger-1: 120ms;
+        --child-stagger-2: 180ms;
         --label-cx: 50%;
         --label-cy: 50%;
         position: relative;
@@ -247,9 +231,8 @@
         min-height: 44px;
         padding: 0;
         border-radius: 999px;
-        position: relative; /* stack icons absolutely */
+        position: relative;
       }
-      /* Stack both icons perfectly centered so they don't shift layout */
       .btn.btn-icon .icon {
         position: absolute;
         left: 50%;
@@ -274,29 +257,25 @@
         opacity: 1;
         transform: translate(-50%, -50%) rotate(0deg) scale(1);
       }
-      /* Vertical flyout for settings buttons: slide-up with subtle squash, then extend */
       .menu-items {
         position: absolute;
         left: 0;
         bottom: calc(100% + 10px);
         overflow: visible;
-        opacity: 0; /* fade hidden by default (avoid ancestor clip-path bug on iOS) */
+        opacity: 0;
         pointer-events: none;
         will-change: opacity;
         transition: opacity var(--items-duration) var(--ease-out);
       }
       .color-menu.open .menu-items {
-        /* Reveal */
         opacity: 1;
         pointer-events: auto;
       }
-      /* Inner wrapper: width gain via gentle scaleX (keeps full buttons visible) */
       .menu-width {
         display: grid;
         gap: 10px;
         width: max-content;
       }
-      /* Direction-aware delays so open = slide then widen, close = widen then slide */
       .color-menu.anim-opening .menu-items {
         transition-delay: 0ms;
       }
@@ -309,8 +288,6 @@
       .color-menu.anim-closing .menu-items {
         transition-delay: 120ms;
       }
-
-      /* Staggered button reveal inside the menu (subtle slide + fade) */
       .menu-width > .btn {
         opacity: 0;
         transform: translateY(8px) scale(0.985);
@@ -322,12 +299,10 @@
         opacity: 1;
         transform: translateY(0) scale(1);
       }
-      /* While opening: show full outline first (empty pill) */
       .color-menu.anim-opening .menu-width > .btn {
         opacity: 1;
         transform: translateY(0) scale(1);
       }
-      /* Stagger only while opening so close feels crisp */
       .color-menu.anim-opening .menu-width > .btn:nth-child(1) {
         transition-delay: var(--child-stagger-1);
       }
@@ -337,8 +312,6 @@
       .color-menu.anim-closing .menu-width > .btn {
         transition-delay: 0ms;
       }
-
-      /* Labels: always visible, no animation */
       .menu-width > .btn .btn-label {
         display: inline-block;
         opacity: 1;
@@ -346,7 +319,6 @@
         clip-path: none;
         transition: none !important;
       }
-      /* Keep the icon visible as an X when open */
       .btn {
         padding: 10px 18px;
         border-radius: 999px;
@@ -361,13 +333,12 @@
         -webkit-backdrop-filter: blur(10px) saturate(120%);
         -webkit-background-clip: padding-box;
         background-clip: padding-box;
-        z-index: 0; /* ensure proper stacking for backdrop on iOS */
-        transform: translateZ(0); /* promote layer to avoid iOS glitches */
+        z-index: 0;
+        transform: translateZ(0);
         -webkit-transform: translateZ(0);
         backface-visibility: hidden;
         -webkit-backface-visibility: hidden;
         opacity: 0.96;
-        /* magnetic transform variables */
         --magnet-x: 0px;
         --magnet-y: 0px;
         --hover-ty: 0px;
@@ -378,15 +349,14 @@
           box-shadow 0.2s ease;
         box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25),
           inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-        position: relative; /* for ripple positioning */
-        overflow: hidden; /* contain ripple inside button */
+        position: relative;
+        overflow: hidden;
       }
       .btn:hover {
         opacity: 1;
         --hover-ty: -1px;
       }
       .btn:active {
-        /* Simple physical click: tiny shrink */
         --press-scale: 0.96;
         --hover-ty: 0px;
       }
@@ -414,7 +384,6 @@
       }
 
       /* Button ripple effect */
-      /* Register animatable custom properties for the mask radius */
       @property --r {
         syntax: "<length>";
         initial-value: 0px;
@@ -430,14 +399,11 @@
         initial-value: 0px;
         inherits: false;
       }
-
-      /* Phase 1: disc grows to fill (invert underlying colors) */
       .btn .ripple-in {
         position: absolute;
         left: var(--rx);
         top: var(--ry);
         border-radius: 999px;
-        /* Use white + difference to invert what's underneath */
         background: #ffffff;
         mix-blend-mode: difference;
         transform: translate(-50%, -50%) scale(0);
@@ -455,17 +421,13 @@
           opacity: 0.95;
         }
       }
-
-      /* Phase 2: full overlay (inverting) with a hole expanding from the click point */
       .btn .ripple-out {
         position: absolute;
         inset: 0;
-        /* White + difference => dynamic inversion of backdrop */
         background: #ffffff;
         mix-blend-mode: difference;
         pointer-events: none;
         will-change: -webkit-mask-image, mask-image;
-        /* Create a transparent hole that starts at 0 and grows to --maxR */
         -webkit-mask-image: radial-gradient(
           circle at var(--rx) var(--ry),
           rgba(0, 0, 0, 0) 0 var(--r),
@@ -476,10 +438,7 @@
           rgba(0, 0, 0, 0) 0 var(--r),
           rgba(0, 0, 0, 1) calc(var(--r) + 1px)
         );
-        /* JS animates --r; no CSS keyframes to avoid browser quirks */
       }
-
-      /* Fallback for browsers without mask-image on elements */
       @supports not (
         (-webkit-mask-image: radial-gradient(#000 0 0)) or
           (mask-image: radial-gradient(#000 0 0))
@@ -487,7 +446,6 @@
         .btn .ripple-out {
           -webkit-mask-image: none;
           mask-image: none;
-          /* Use clip-path as a coarse fallback */
           clip-path: circle(var(--r) at var(--rx) var(--ry));
         }
       }
@@ -498,7 +456,7 @@
         width: 10px;
         height: 10px;
         border-radius: 50%;
-        background: #ffffff; /* white + difference => invert */
+        background: #ffffff;
         mix-blend-mode: difference;
         box-shadow: none;
         transform: translate(-50%, -50%);
@@ -517,7 +475,6 @@
         mix-blend-mode: difference;
         transition: opacity 0.15s ease, transform 0.2s ease,
           border-color 0.12s ease, filter 0.1s ease;
-        /* Ring can drift while inner pill stays fixed */
         transform: translate(var(--ring-ox, 0px), var(--ring-oy, 0px));
       }
       .cursor.snap {
@@ -525,9 +482,8 @@
         transform: translate(-50%, -50%) scale(1.06);
       }
       .cursor.btn-hover {
-        /* Size set dynamically while magneted onto a button */
         border-radius: 999px;
-        background: #ffffff; /* keep white for inversion */
+        background: #ffffff;
         box-shadow: none;
       }
       .cursor.btn-hover::after {
@@ -539,7 +495,7 @@
         width: 24px;
         height: 24px;
         border-radius: 50%;
-        background: #ffffff; /* ensure inversion even over text */
+        background: #ffffff;
         box-shadow: none;
       }
       .cursor.text-hover::after {
@@ -736,7 +692,6 @@
         audioEl.src = AUDIO_URL;
         audioEl.loop = true;
         audioEl.preload = "metadata";
-        // Ensure we seek to the desired offset when metadata is ready
         audioEl.addEventListener(
           "loadedmetadata",
           () => {
@@ -749,9 +704,7 @@
         );
         sourceNode = audioCtx.createMediaElementSource(audioEl);
         sourceNode.connect(analyser);
-        // Insert a gain node after the analyser for fade in/out
         gainNode = audioCtx.createGain();
-        // start silent; fade in when playing
         try {
           gainNode.gain.value = 0;
         } catch {}
@@ -766,7 +719,6 @@
         const g = gainNode.gain;
         try {
           g.cancelScheduledValues(now);
-          // Use current value as starting point
           g.setValueAtTime(g.value, now);
           g.linearRampToValueAtTime(target, now + durationSec);
         } catch {}
@@ -845,7 +797,6 @@
           kickEnergy = Math.min(1.0, kickAvg * 2.0);
           kickImpact = 10;
           lastKickTime = now;
-          // Pulse the cursor on beat
           try {
             triggerCursorBeat(kickEnergy);
           } catch {}
@@ -913,7 +864,6 @@ vec3 applyGrain(vec3 color, vec2 uv){ if(!enableGrain) return color; float t=iTi
 
 void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.0));
   float speed=mix(idleSpeed, baseSpeed, transitionFactor);
-  // Keep lines calmer when paused (higher straightness at idle)
   float str=mix(lineStraightness, 1.0, transitionFactor);
   float idle=idleWaveHeight * sin(p.x*5.0 + idleAnimation*0.2);
   float b=sq(lowFreq)*bassReactivity*transitionFactor; float m=sq(midFreq)*midReactivity*transitionFactor; float h=sq(highFreq)*highReactivity*transitionFactor; float bounce=bounceEffect*bounceIntensity*transitionFactor;
@@ -924,9 +874,7 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
   float repel=textRepel * inSafe * (0.5 + 0.5*b);
   float repelDirA=sign(p.y - safeRectA.y); float repelDirB=sign(p.y - safeRectB.y);
 
-  // Keep base motion smaller when idle to avoid sudden wiggles on stop
   float baseAmp = mix(0.02, 0.045, transitionFactor);
-  // Use externally integrated phase so toggling play/stop doesn't jump position
   float curve = (baseAmp + 0.05*(b + 0.6*m)) * sin((6.25*p.x) + phase);
   float wave = (0.07*b + 0.05*m + 0.03*h)/str * (sin(p.x*18.0*waveComplexity) + 0.5*sin(p.x*36.0*waveComplexity));
 
@@ -957,7 +905,6 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
   vec3 accC = mix(baseC, accentHigh, 0.95);
   vec3 cC = (1.0 - sC) * mix(baseC, accC, colorLevel * (0.35 + 0.65*h));
 
-  // Background influenced by lines + color level
   float field = (1.0 - sA) + (1.0 - sB) + (1.0 - sC);
   float energy = clamp(0.55*b + 0.35*m + 0.7*h + 0.55*kickEnergy, 0.0, 1.0);
   float linInf = exp(-dA*1.2) + exp(-dB*1.2) + exp(-dC*1.2);
@@ -1004,12 +951,10 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         lineStraightness: { value: 2.8 },
         idleAnimation: { value: 0 },
         phase: { value: 0 },
-        // Stronger idle motion so lines move when not playing
         idleWaveHeight: { value: 0.012 },
         kickEnergy: { value: 0 },
         bounceEffect: { value: 0 },
         baseSpeed: { value: 1.0 },
-        // Faster idle horizontal drift so still lines move a bit more
         idleSpeed: { value: 0.45 },
         bassReactivity: { value: 0.42 },
         midReactivity: { value: 0.45 },
@@ -1035,12 +980,12 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         l2Out: { value: new THREE.Vector3(0.66, 0.66, 0.66) },
         l3In: { value: new THREE.Vector3(0.68, 0.68, 0.68) },
         l3Out: { value: new THREE.Vector3(0.54, 0.54, 0.54) },
-        // accents (duotone leaning purple)
-        accentBass: { value: new THREE.Vector3(1.0, 0.83, 0.63) }, // warm apricot
-        accentMid: { value: new THREE.Vector3(0.83, 0.74, 1.0) }, // lavender
-        accentHigh: { value: new THREE.Vector3(0.74, 0.63, 1.0) }, // violet
-        colorLevel: { value: 0.55 }, // Accent mode default; buttons will toggle
-        // Readability
+        // accents
+        accentBass: { value: new THREE.Vector3(1.0, 0.83, 0.63) },
+        accentMid: { value: new THREE.Vector3(0.83, 0.74, 1.0) },
+        accentHigh: { value: new THREE.Vector3(0.74, 0.63, 1.0) },
+        colorLevel: { value: 0.55 },
+        // readability
         safeRectA: { value: new THREE.Vector4(0.5, 0.82, 0.36, 0.1) },
         safeRectB: { value: new THREE.Vector4(0.5, 0.2, 0.34, 0.1) },
         safeFeather: { value: 0.08 },
@@ -1079,7 +1024,7 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
       }
       makeNoiseTex();
 
-      // SAFE ZONE SYNC
+      // Sync safe rectangles to overlay positions
       const topBox = document.getElementById("titleTop");
       const bottomBox = document.getElementById("titleBottom");
       const rectToSafe = (r) => {
@@ -1102,38 +1047,33 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
       updateSafeRects();
       setTimeout(updateSafeRects, 150);
 
-      // CURSOR: state for beat-reactivity and filter refs
+      // Cursor state
       const cursorEl = document.getElementById("cursor");
-      // Cursor target (TX/TY) and actual (X/Y) for smooth follow
       let cursorTX = innerWidth * 0.5,
         cursorTY = innerHeight * 0.5,
         cursorX = cursorTX,
         cursorY = cursorTY;
-      // Track last pointer position and current magnetized button
       let lastMouseX = cursorTX,
         lastMouseY = cursorTY;
       let magnetBtn = null;
-      let cursorBeat = 0; // decaying pulse on kick
+      let cursorBeat = 0;
       const turbEl = document.getElementById("cursorTurbulence");
       const dispEl = document.getElementById("cursorDisplace");
       function triggerCursorBeat(strength) {
-        // subtler pop; combine with existing pulse
         cursorBeat = Math.min(1, Math.max(cursorBeat, 0.25 + strength * 0.5));
       }
 
-      // LOOP
+      // Loop
       let last = performance.now(),
         frames = 0,
         acc = 0;
       const fpsEl = document.getElementById("fps");
       let transition = 0;
-      // Integrate a global phase so horizontal drift continues smoothly
       let phase = 0;
       function animate(now) {
         requestAnimationFrame(animate);
         const dt = (now - last) / 1000;
         last = now;
-        // Advance time with real dt; scale to preserve prior pacing (~0.6x/sec)
         const timeScale = 0.6;
         uniforms.iTime.value += dt * timeScale;
         uniforms.idleAnimation.value += dt * timeScale;
@@ -1143,9 +1083,7 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
           transition = Math.min(transition + rate, 1.0);
         } else if (!isPlaying && transition > 0.0) {
           transition = Math.max(transition - rate, 0.0);
-          // During the settle window, actively damp any residual analysis
-          // so we don't get a brief wiggle before becoming still.
-          const k = Math.max(0, 1 - 6 * dt); // ~fast decay over ~250ms
+          const k = Math.max(0, 1 - 6 * dt);
           lowFreq *= k;
           midFreq *= k;
           highFreq *= k;
@@ -1164,7 +1102,6 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
             uniforms.bounceEffect.value = 0;
           }
         }
-        // Smooth speed blend across states, then integrate phase
         const curSpeed =
           uniforms.idleSpeed.value * (1 - transition) +
           uniforms.baseSpeed.value * transition;
@@ -1173,15 +1110,9 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         uniforms.transitionFactor.value = transition;
         uniforms.isPlaying.value = isPlaying;
         renderer.render(scene, camera);
-
-        // Cursor beat reaction and transform update
-        // Decay the pulse and scale cursor on beat (slower decay, bigger pop)
         cursorBeat = Math.max(0, cursorBeat - dt * 3.2);
-        // Stronger, clearer pop on each beat then ease back
         const beatScale = 1 + 0.35 * (1 - Math.pow(1 - cursorBeat, 2));
-        // Smooth follow to target; stronger when snapping to buttons
         const snapActive = cursorEl.classList.contains("btn-hover");
-        // If currently magneted to a button, continuously match its live size
         if (snapActive && magnetBtn && document.body.contains(magnetBtn)) {
           const br = magnetBtn.getBoundingClientRect();
           const cx = br.left + br.width / 2;
@@ -1192,22 +1123,17 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
           const maxOff = 8;
           const offX = Math.max(-maxOff, Math.min(maxOff, dx * k));
           const offY = Math.max(-maxOff, Math.min(maxOff, dy * k));
-          // Move inner pill too (back to original behavior)
           cursorTX = cx + offX;
           cursorTY = cy + offY;
           cursorEl.style.width = `${Math.max(1, br.width)}px`;
           cursorEl.style.height = `${Math.max(1, br.height)}px`;
-          // Ring follows inner pill directly (no extra offset)
           cursorEl.style.setProperty("--ring-ox", "0px");
           cursorEl.style.setProperty("--ring-oy", "0px");
-          // Also nudge the button itself slightly toward the pointer
           magnetBtn.style.setProperty("--magnet-x", `${offX}px`);
           magnetBtn.style.setProperty("--magnet-y", `${offY}px`);
         } else {
-          // Not magneted: ensure ring recenters
           cursorEl.style.setProperty("--ring-ox", "0px");
           cursorEl.style.setProperty("--ring-oy", "0px");
-          // Reset any previous magnetized button offset
           if (magnetBtn) {
             try {
               magnetBtn.style.setProperty("--magnet-x", "0px");
@@ -1215,13 +1141,10 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
             } catch {}
           }
         }
-        const follow = snapActive ? 18 : 12; // per-second smoothing
+        const follow = snapActive ? 18 : 12;
         const a = 1 - Math.exp(-follow * dt);
         cursorX += (cursorTX - cursorX) * a;
         cursorY += (cursorTY - cursorY) * a;
-        // Apply beat-driven growth only in default state.
-        // When snapped to a button or hovering a link, keep size steady
-        // (ring will still get noisy via .beat::after filter).
         const baseHoverScale = cursorEl.classList.contains("snap") ? 1.06 : 1.0;
         const nonDefaultState =
           snapActive || cursorEl.classList.contains("text-hover");
@@ -1233,7 +1156,6 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         if (dispEl && turbEl) {
           const disp = cursorBeat > 0 ? 4 + 14 * cursorBeat : 0;
           dispEl.setAttribute("scale", disp.toFixed(2));
-          // Animate turbulence for lively spikes
           const baseF = 0.55 + 0.55 * cursorBeat;
           turbEl.setAttribute("baseFrequency", baseF.toFixed(3));
           turbEl.setAttribute("seed", String(((now * 0.08) | 0) % 10000));
@@ -1256,12 +1178,10 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
       });
       addEventListener("mousemove", (e) => {
         uniforms.iMouse.value.set(e.clientX, e.clientY);
-        // Default target is the pointer position
         cursorTX = e.clientX;
         cursorTY = e.clientY;
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
-        // Robust button hit-test: consider any element under pointer
         let btnEl = null;
         if (document.elementsFromPoint) {
           const stack = document.elementsFromPoint(e.clientX, e.clientY);
@@ -1274,7 +1194,6 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
           }
         }
         if (!btnEl) btnEl = e.target.closest("button,.btn");
-        // Link hit-test: only enlarge cursor over anchors
         let linkEl = null;
         if (document.elementsFromPoint) {
           const stack = document.elementsFromPoint(e.clientX, e.clientY);
@@ -1291,27 +1210,22 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         cursorEl.classList.toggle("btn-hover", !!btnEl);
         cursorEl.classList.toggle("text-hover", !btnEl && !!linkEl);
         cursorEl.classList.toggle("snap", !!btnEl);
-        // Magnetic snap: retarget to button center while hovering
         if (btnEl) {
           const br = btnEl.getBoundingClientRect();
           const cx = br.left + br.width / 2;
           const cy = br.top + br.height / 2;
-          // Slight interactive offset based on pointer delta from center
           const dx = e.clientX - cx;
           const dy = e.clientY - cy;
-          const k = 0.12; // how much of the delta we apply
-          const maxOff = 8; // clamp offset in px
+          const k = 0.12;
+          const maxOff = 8;
           const offX = Math.max(-maxOff, Math.min(maxOff, dx * k));
           const offY = Math.max(-maxOff, Math.min(maxOff, dy * k));
-          // Move inner pill too (back to original behavior)
           cursorTX = cx + offX;
           cursorTY = cy + offY;
           cursorEl.style.setProperty("--ring-ox", "0px");
           cursorEl.style.setProperty("--ring-oy", "0px");
-          // Make inner pill match the button's size exactly (no extra padding)
           cursorEl.style.width = `${Math.max(1, br.width)}px`;
           cursorEl.style.height = `${Math.max(1, br.height)}px`;
-          // Set magnet offsets on the button itself
           if (magnetBtn && magnetBtn !== btnEl) {
             try {
               magnetBtn.style.setProperty("--magnet-x", "0px");
@@ -1322,7 +1236,6 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
           btnEl.style.setProperty("--magnet-y", `${offY}px`);
           magnetBtn = btnEl;
         } else {
-          // Reset to default sizes controlled by CSS for non-buttons
           cursorEl.style.width = "";
           cursorEl.style.height = "";
           cursorEl.style.setProperty("--ring-ox", "0px");
@@ -1343,14 +1256,12 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         setupAudio();
         if (audioCtx.state === "suspended") await audioCtx.resume();
         if (!isPlaying) {
-          // If metadata is already available, seek before starting to avoid a blip at 0s
           if (audioEl.readyState >= 1 && !audioEl._startApplied) {
             try {
               audioEl.currentTime = START_AT_SECONDS;
               audioEl._startApplied = true;
             } catch {}
           }
-          // start silent then fade in
           try {
             if (gainNode) gainNode.gain.value = 0;
           } catch {}
@@ -1359,7 +1270,6 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
           if (playLabel) playLabel.textContent = "Stop";
           fadeInQuick();
         } else {
-          // Fade out quickly, then pause
           fadeOutQuick();
           setTimeout(() => {
             audioEl.pause();
@@ -1432,18 +1342,15 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         return Math.random() * (max - min) + min;
       }
       function pickPalette() {
-        // Base hue can be anywhere; keep saturation/lightness restrained for minimalism
         const baseH = rand(0, 360);
         const satAcc = rand(0.25, 0.5);
         const lightAcc = rand(0.6, 0.78);
-        // Analogous triad around base
         const hMid = baseH;
         const hHigh = baseH + rand(8, 24);
-        const hBass = baseH - rand(18, 36); // warmer/contrast
+        const hBass = baseH - rand(18, 36);
         const [r1, g1, b1] = hslToRgb(hBass, satAcc * 0.9, lightAcc * 0.9);
         const [r2, g2, b2] = hslToRgb(hMid, satAcc, lightAcc);
         const [r3, g3, b3] = hslToRgb(hHigh, satAcc * 0.95, lightAcc * 0.92);
-        // Background: very dark version of base hue
         const [rb1, gb1, bb1] = hslToRgb(baseH - 6, satAcc * 0.25, 0.08);
         const [rb2, gb2, bb2] = hslToRgb(baseH + 6, satAcc * 0.3, 0.11);
         return {
@@ -1472,9 +1379,7 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         }
       });
 
-      // Remove complex ripple; clicks now feel physical via CSS :active shrink
-
-      // Hamburger toggle for color settings + auto-hide
+      // Hamburger toggle for color settings
       (function colorMenuToggle() {
         const menuWrap = document.getElementById("colorMenu");
         const menuBtn = document.getElementById("menuBtn");
@@ -1495,10 +1400,8 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
           return;
 
         let hideTimer = null;
-        const AUTO_HIDE_MS = 20000; // at least 20s
-        let isOpen = false; // target state
-
-        // No positioning logic needed; panel wraps buttons directly
+        const AUTO_HIDE_MS = 20000;
+        let isOpen = false;
 
         const clearHideTimer = () => {
           if (hideTimer) {
@@ -1522,9 +1425,7 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
             menuBtn.setAttribute("aria-expanded", "true");
             menuBtn.setAttribute("aria-label", "Close color settings");
             menuBtn.setAttribute("title", "Close");
-            // remove directional class after a bit to avoid accumulating
             setTimeout(() => menuWrap.classList.remove("anim-opening"), 400);
-            // panel halo becomes visible via CSS when menu is open
             scheduleHide();
           } else {
             menuWrap.classList.add("anim-closing");
@@ -1539,17 +1440,13 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
 
         menuBtn.addEventListener("click", () => setOpen(!isOpen));
 
-        // Interacting with color/random buttons keeps menu open, then hides after long delay
         [colorBtnEl, randBtnEl].forEach((b) =>
           b.addEventListener("click", () => scheduleHide(AUTO_HIDE_MS))
         );
-
-        // If mouse leaves the area, still allow auto-hide timer to do its work
         menuWrap.addEventListener("mouseenter", () => clearHideTimer());
         menuWrap.addEventListener("mouseleave", () => {
           if (isOpen) scheduleHide(1200);
         });
-        // No overlay positioning required
 
         // ESC closes
         addEventListener("keydown", (e) => {
