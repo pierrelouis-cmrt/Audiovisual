@@ -208,17 +208,6 @@
           );
         }
       }
-      /* On touch/coarse devices, disable backdrop filters to reduce compositing cost */
-      @media (hover: none), (pointer: coarse) {
-        .menu-panel,
-        .menu-panel::before,
-        .btn,
-        .fps {
-          backdrop-filter: none !important;
-          -webkit-backdrop-filter: none !important;
-          background: rgba(12, 14, 16, 0.84) !important;
-        }
-      }
       .color-menu {
         --menu-icon-size: 44px;
         --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -669,13 +658,12 @@
     <script type="module">
       import * as THREE from "https://unpkg.com/three@0.160.1/build/three.module.js";
 
-      // Hide custom cursor on touch/coarse-pointer devices and track a flag
-      let HAS_COARSE_POINTER = false;
+      // Hide custom cursor on touch/coarse-pointer devices
       try {
-        HAS_COARSE_POINTER =
+        const isNoHover =
           window.matchMedia("(hover: none)").matches ||
           window.matchMedia("(pointer: coarse)").matches;
-        if (HAS_COARSE_POINTER) {
+        if (isNoHover) {
           const c = document.getElementById("cursor");
           if (c) c.style.display = "none";
         }
@@ -840,19 +828,9 @@
       const renderer = new THREE.WebGLRenderer({
         canvas: document.getElementById("gl"),
         antialias: true,
-        alpha: false,
-        depth: false,
-        stencil: false,
-        powerPreference: "high-performance",
-        preserveDrawingBuffer: false,
       });
-      const BASE_DPR = Math.min(devicePixelRatio || 1, 2);
-      let resScale = 1; // 1 = full internal res for BASE_DPR
-      function applyResolutionScale() {
-        renderer.setPixelRatio(BASE_DPR * resScale);
-        renderer.setSize(innerWidth, innerHeight);
-      }
-      applyResolutionScale();
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(innerWidth, innerHeight);
       const scene = new THREE.Scene();
       const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
@@ -1133,72 +1111,59 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         uniforms.isPlaying.value = isPlaying;
         renderer.render(scene, camera);
         cursorBeat = Math.max(0, cursorBeat - dt * 3.2);
-        if (!HAS_COARSE_POINTER) {
-          const beatScale = 1 + 0.35 * (1 - Math.pow(1 - cursorBeat, 2));
-          const snapActive = cursorEl.classList.contains("btn-hover");
-          if (snapActive && magnetBtn && document.body.contains(magnetBtn)) {
-            const br = magnetBtn.getBoundingClientRect();
-            const cx = br.left + br.width / 2;
-            const cy = br.top + br.height / 2;
-            const dx = lastMouseX - cx;
-            const dy = lastMouseY - cy;
-            const k = 0.12;
-            const maxOff = 8;
-            const offX = Math.max(-maxOff, Math.min(maxOff, dx * k));
-            const offY = Math.max(-maxOff, Math.min(maxOff, dy * k));
-            cursorTX = cx + offX;
-            cursorTY = cy + offY;
-            cursorEl.style.width = `${Math.max(1, br.width)}px`;
-            cursorEl.style.height = `${Math.max(1, br.height)}px`;
-            cursorEl.style.setProperty("--ring-ox", "0px");
-            cursorEl.style.setProperty("--ring-oy", "0px");
-            magnetBtn.style.setProperty("--magnet-x", `${offX}px`);
-            magnetBtn.style.setProperty("--magnet-y", `${offY}px`);
-          } else {
-            cursorEl.style.setProperty("--ring-ox", "0px");
-            cursorEl.style.setProperty("--ring-oy", "0px");
-            if (magnetBtn) {
-              try {
-                magnetBtn.style.setProperty("--magnet-x", "0px");
-                magnetBtn.style.setProperty("--magnet-y", "0px");
-              } catch {}
-            }
+        const beatScale = 1 + 0.35 * (1 - Math.pow(1 - cursorBeat, 2));
+        const snapActive = cursorEl.classList.contains("btn-hover");
+        if (snapActive && magnetBtn && document.body.contains(magnetBtn)) {
+          const br = magnetBtn.getBoundingClientRect();
+          const cx = br.left + br.width / 2;
+          const cy = br.top + br.height / 2;
+          const dx = lastMouseX - cx;
+          const dy = lastMouseY - cy;
+          const k = 0.12;
+          const maxOff = 8;
+          const offX = Math.max(-maxOff, Math.min(maxOff, dx * k));
+          const offY = Math.max(-maxOff, Math.min(maxOff, dy * k));
+          cursorTX = cx + offX;
+          cursorTY = cy + offY;
+          cursorEl.style.width = `${Math.max(1, br.width)}px`;
+          cursorEl.style.height = `${Math.max(1, br.height)}px`;
+          cursorEl.style.setProperty("--ring-ox", "0px");
+          cursorEl.style.setProperty("--ring-oy", "0px");
+          magnetBtn.style.setProperty("--magnet-x", `${offX}px`);
+          magnetBtn.style.setProperty("--magnet-y", `${offY}px`);
+        } else {
+          cursorEl.style.setProperty("--ring-ox", "0px");
+          cursorEl.style.setProperty("--ring-oy", "0px");
+          if (magnetBtn) {
+            try {
+              magnetBtn.style.setProperty("--magnet-x", "0px");
+              magnetBtn.style.setProperty("--magnet-y", "0px");
+            } catch {}
           }
-          const follow = snapActive ? 18 : 12;
-          const a = 1 - Math.exp(-follow * dt);
-          cursorX += (cursorTX - cursorX) * a;
-          cursorY += (cursorTY - cursorY) * a;
-          const baseHoverScale = cursorEl.classList.contains("snap") ? 1.06 : 1.0;
-          const nonDefaultState =
-            snapActive || cursorEl.classList.contains("text-hover");
-          const effectiveBeatScale = nonDefaultState ? 1.0 : beatScale;
-          const finalScaleNum = baseHoverScale * effectiveBeatScale;
-          const finalScale = finalScaleNum.toFixed(3);
-          cursorEl.style.transform = `translate(${cursorX}px,${cursorY}px) translate(-50%, -50%) scale(${finalScale})`;
-          cursorEl.classList.toggle("beat", cursorBeat > 0.03);
-          if (dispEl && turbEl) {
-            const disp = cursorBeat > 0 ? 4 + 14 * cursorBeat : 0;
-            dispEl.setAttribute("scale", disp.toFixed(2));
-            const baseF = 0.55 + 0.55 * cursorBeat;
-            turbEl.setAttribute("baseFrequency", baseF.toFixed(3));
-            turbEl.setAttribute("seed", String(((now * 0.08) | 0) % 10000));
-          }
+        }
+        const follow = snapActive ? 18 : 12;
+        const a = 1 - Math.exp(-follow * dt);
+        cursorX += (cursorTX - cursorX) * a;
+        cursorY += (cursorTY - cursorY) * a;
+        const baseHoverScale = cursorEl.classList.contains("snap") ? 1.06 : 1.0;
+        const nonDefaultState =
+          snapActive || cursorEl.classList.contains("text-hover");
+        const effectiveBeatScale = nonDefaultState ? 1.0 : beatScale;
+        const finalScaleNum = baseHoverScale * effectiveBeatScale;
+        const finalScale = finalScaleNum.toFixed(3);
+        cursorEl.style.transform = `translate(${cursorX}px,${cursorY}px) translate(-50%, -50%) scale(${finalScale})`;
+        cursorEl.classList.toggle("beat", cursorBeat > 0.03);
+        if (dispEl && turbEl) {
+          const disp = cursorBeat > 0 ? 4 + 14 * cursorBeat : 0;
+          dispEl.setAttribute("scale", disp.toFixed(2));
+          const baseF = 0.55 + 0.55 * cursorBeat;
+          turbEl.setAttribute("baseFrequency", baseF.toFixed(3));
+          turbEl.setAttribute("seed", String(((now * 0.08) | 0) % 10000));
         }
         acc += dt;
         frames++;
         if (acc >= 0.25) {
-          const fpsNow = Math.round(frames / acc);
-          fpsEl.textContent = `FPS: ${fpsNow}`;
-          // Simple dynamic resolution scaling to keep closer to device refresh
-          const minScale = 0.6;
-          const maxScale = 1.0;
-          if (fpsNow < 80 && resScale > minScale) {
-            resScale = Math.max(minScale, +(resScale * 0.95).toFixed(3));
-            applyResolutionScale();
-          } else if (fpsNow > 100 && resScale < maxScale) {
-            resScale = Math.min(maxScale, +(resScale * 1.02).toFixed(3));
-            applyResolutionScale();
-          }
+          fpsEl.textContent = `FPS: ${Math.round(frames / acc)}`;
           frames = 0;
           acc = 0;
         }
@@ -1207,7 +1172,7 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
 
       // EVENTS
       addEventListener("resize", () => {
-        applyResolutionScale();
+        renderer.setSize(innerWidth, innerHeight);
         uniforms.iResolution.value.set(innerWidth, innerHeight);
         updateSafeRects();
       });
