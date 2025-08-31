@@ -382,6 +382,9 @@
       .fps:hover {
         opacity: 1;
       }
+      .fps:focus {
+        outline: none;
+      }
 
       /* Button ripple effect */
       @property --r {
@@ -619,7 +622,17 @@
         </div>
       </div>
     </div>
-    <div class="fps" id="fps" aria-live="polite">FPS: —</div>
+    <div
+      class="fps"
+      id="fps"
+      aria-live="polite"
+      role="button"
+      tabindex="0"
+      aria-expanded="false"
+      title="Toggle performance details"
+    >
+      FPS: —
+    </div>
     <div class="cursor" id="cursor"></div>
 
     <!-- SVG filter for spiky/wavy ring distortion on beat -->
@@ -681,6 +694,7 @@
         sourceNode;
       const FFT_SIZE = 1024;
       let dataArray;
+
       function setupAudio() {
         if (audioCtx) return;
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -828,9 +842,14 @@
       const renderer = new THREE.WebGLRenderer({
         canvas: document.getElementById("gl"),
         antialias: true,
+        powerPreference: "high-performance",
+        failIfMajorPerformanceCaveat: false,
       });
-      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      let baseDPR = Math.min(window.devicePixelRatio || 1, 2);
+      let targetDPRMax = baseDPR; // do not upscale above device DPR
+      renderer.setPixelRatio(baseDPR);
       renderer.setSize(innerWidth, innerHeight);
+
       const scene = new THREE.Scene();
       const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
@@ -937,7 +956,7 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
   f = applyGrain(f, p);
   gl_FragColor = vec4(f, 1.0);
 }
-      `;
+`;
 
       const uniforms = {
         iResolution: { value: new THREE.Vector2(innerWidth, innerHeight) },
@@ -1063,21 +1082,125 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         cursorBeat = Math.min(1, Math.max(cursorBeat, 0.25 + strength * 0.5));
       }
 
+      // --- HIGH-REFRESH DETECTION & AUTOSCALING ---
+      const hzCommon = [
+        60, 75, 90, 100, 120, 144, 165, 170, 175, 180, 200, 240,
+      ];
+      let estimatedHz = 60;
+      let smoothedFps = 0;
+      let previousRAF = performance.now();
+      const frameTimes = [];
+      function quantizeHz(raw) {
+        let best = hzCommon[0],
+          err = Infinity;
+        for (const h of hzCommon) {
+          const e = Math.abs(raw - h);
+          if (e < err) {
+            err = e;
+            best = h;
+          }
+        }
+        return err > 3 ? raw : best;
+      }
+      function updateHzEstimate(now) {
+        frameTimes.push(now);
+        if (frameTimes.length > 240) frameTimes.shift();
+        if (frameTimes.length > 30) {
+          const gaps = [];
+          for (let i = 1; i < frameTimes.length; i++)
+            gaps.push(frameTimes[i] - frameTimes[i - 1]);
+          gaps.sort((a, b) => a - b);
+          const q25 = gaps[Math.floor(gaps.length * 0.25)] || 16.7; // robust to outliers
+          const rawHz = 1000 / q25;
+          estimatedHz = quantizeHz(rawHz);
+        }
+      }
+      function autoscale(resolutionBudgetHz) {
+        const prNow = renderer.getPixelRatio();
+        let next = prNow;
+        if (smoothedFps < resolutionBudgetHz * 0.92 && prNow > 0.75) {
+          next = Math.max(0.75, +(prNow - 0.1).toFixed(2));
+        } else if (
+          smoothedFps > resolutionBudgetHz * 0.98 &&
+          prNow < targetDPRMax
+        ) {
+          next = Math.min(targetDPRMax, +(prNow + 0.1).toFixed(2));
+        }
+        if (next !== prNow) {
+          renderer.setPixelRatio(next);
+          renderer.setSize(innerWidth, innerHeight, false);
+        }
+      }
+      // OPTIONAL tiny shader auto-tune if scaler can’t keep up for a while:
+      let underperformTicks = 0;
+      function maybeAutotuneShader() {
+        if (smoothedFps < estimatedHz * 0.85) {
+          underperformTicks++;
+          if (underperformTicks === 8) {
+            // ~2s (8 * 0.25s)
+            uniforms.grainIntensity.value *= 0.7;
+            uniforms.waveComplexity.value = Math.max(
+              1.5,
+              uniforms.waveComplexity.value * 0.9
+            );
+          }
+        } else {
+          underperformTicks = Math.max(0, underperformTicks - 1);
+        }
+      }
+
       // Loop
       let last = performance.now(),
         frames = 0,
         acc = 0;
       const fpsEl = document.getElementById("fps");
+      let fpsExpanded = false;
+      function renderFpsHud() {
+        if (!fpsEl) return;
+        const fpsNow = Math.round(smoothedFps || 0);
+        if (fpsExpanded) {
+          fpsEl.textContent = `FPS: ${fpsNow} | Display: ~${Math.round(
+            estimatedHz
+          )}Hz | DPR: ${renderer.getPixelRatio().toFixed(2)}`;
+        } else {
+          fpsEl.textContent = `FPS: ${fpsNow}`;
+        }
+      }
+      if (fpsEl) {
+        fpsEl.addEventListener("click", () => {
+          fpsExpanded = !fpsExpanded;
+          fpsEl.setAttribute("aria-expanded", String(fpsExpanded));
+          renderFpsHud();
+        });
+        fpsEl.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fpsExpanded = !fpsExpanded;
+            fpsEl.setAttribute("aria-expanded", String(fpsExpanded));
+            renderFpsHud();
+          }
+        });
+      }
       let transition = 0;
       let phase = 0;
+
       function animate(now) {
         requestAnimationFrame(animate);
         const dt = (now - last) / 1000;
         last = now;
+
+        // Fresh measurements
+        const instFps = 1000 / Math.max(0.0001, now - previousRAF);
+        previousRAF = now;
+        smoothedFps = smoothedFps ? smoothedFps * 0.8 + instFps * 0.2 : instFps;
+        updateHzEstimate(now);
+
         const timeScale = 0.6;
         uniforms.iTime.value += dt * timeScale;
         uniforms.idleAnimation.value += dt * timeScale;
+
         updateFrequencies();
+
         const rate = 0.03;
         if (isPlaying && transition < 1.0) {
           transition = Math.min(transition + rate, 1.0);
@@ -1102,6 +1225,7 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
             uniforms.bounceEffect.value = 0;
           }
         }
+
         const curSpeed =
           uniforms.idleSpeed.value * (1 - transition) +
           uniforms.baseSpeed.value * transition;
@@ -1109,7 +1233,10 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         uniforms.phase.value = phase;
         uniforms.transitionFactor.value = transition;
         uniforms.isPlaying.value = isPlaying;
+
         renderer.render(scene, camera);
+
+        // Cursor beat/shape + filter
         cursorBeat = Math.max(0, cursorBeat - dt * 3.2);
         const beatScale = 1 + 0.35 * (1 - Math.pow(1 - cursorBeat, 2));
         const snapActive = cursorEl.classList.contains("btn-hover");
@@ -1160,10 +1287,14 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
           turbEl.setAttribute("baseFrequency", baseF.toFixed(3));
           turbEl.setAttribute("seed", String(((now * 0.08) | 0) % 10000));
         }
+
+        // HUD, autoscale & mild shader autotune
         acc += dt;
         frames++;
         if (acc >= 0.25) {
-          fpsEl.textContent = `FPS: ${Math.round(frames / acc)}`;
+          autoscale(estimatedHz);
+          maybeAutotuneShader();
+          renderFpsHud();
           frames = 0;
           acc = 0;
         }
@@ -1172,8 +1303,10 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
 
       // EVENTS
       addEventListener("resize", () => {
-        renderer.setSize(innerWidth, innerHeight);
+        renderer.setSize(innerWidth, innerHeight, false);
         uniforms.iResolution.value.set(innerWidth, innerHeight);
+        baseDPR = Math.min(window.devicePixelRatio || 1, 2);
+        targetDPRMax = baseDPR;
         updateSafeRects();
       });
       addEventListener("mousemove", (e) => {
@@ -1182,6 +1315,7 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         cursorTY = e.clientY;
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
+
         let btnEl = null;
         if (document.elementsFromPoint) {
           const stack = document.elementsFromPoint(e.clientX, e.clientY);
@@ -1195,6 +1329,7 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         }
         if (!btnEl) btnEl = e.target.closest("button,.btn");
         let linkEl = null;
+        let fpsHover = false;
         if (document.elementsFromPoint) {
           const stack = document.elementsFromPoint(e.clientX, e.clientY);
           for (const el of stack) {
@@ -1204,11 +1339,21 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
               break;
             }
           }
+          if (!linkEl) {
+            for (const el of stack) {
+              const f = el.closest && el.closest("#fps");
+              if (f) {
+                fpsHover = true;
+                break;
+              }
+            }
+          }
         }
         if (!linkEl) linkEl = e.target.closest("a");
+        if (!linkEl && !fpsHover) fpsHover = !!e.target.closest && !!e.target.closest("#fps");
 
         cursorEl.classList.toggle("btn-hover", !!btnEl);
-        cursorEl.classList.toggle("text-hover", !btnEl && !!linkEl);
+        cursorEl.classList.toggle("text-hover", (!btnEl && !!linkEl) || fpsHover);
         cursorEl.classList.toggle("snap", !!btnEl);
         if (btnEl) {
           const br = btnEl.getBoundingClientRect();
@@ -1388,7 +1533,6 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         const items = document.getElementById("menuItems");
         const widthWrap = document.getElementById("menuWidth");
         const panel = document.getElementById("menuPanel");
-
         if (
           !menuWrap ||
           !menuBtn ||
@@ -1409,7 +1553,6 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
             hideTimer = null;
           }
         };
-
         const scheduleHide = (delay = AUTO_HIDE_MS) => {
           clearHideTimer();
           hideTimer = setTimeout(() => setOpen(false), delay);
@@ -1439,7 +1582,6 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         }
 
         menuBtn.addEventListener("click", () => setOpen(!isOpen));
-
         [colorBtnEl, randBtnEl].forEach((b) =>
           b.addEventListener("click", () => scheduleHide(AUTO_HIDE_MS))
         );
@@ -1447,8 +1589,6 @@ void main(){ vec2 p=vUv; vec3 bg=mix(bgColorDown,bgColorUp, clamp(p.y*2.0,0.0,1.
         menuWrap.addEventListener("mouseleave", () => {
           if (isOpen) scheduleHide(1200);
         });
-
-        // ESC closes
         addEventListener("keydown", (e) => {
           if (e.key === "Escape") setOpen(false);
         });
